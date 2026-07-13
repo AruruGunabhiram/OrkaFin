@@ -16,9 +16,8 @@ python -m pip install -e '.[dev]'
 cp .env.example .env
 ```
 
-The scaffold does not read `.env` yet. Its documented names reserve the explicit
-configuration contract for Prompt 3; no external key is required for the service
-to start.
+The service reads `.env` through Pydantic Settings with the `ORKAFIN_` prefix. No
+external key is required when `ORKAFIN_AI_PROVIDER=deterministic`.
 
 ## Development commands
 
@@ -65,16 +64,30 @@ to the current Python interpreter.
 
 ## Reserved environment variables
 
-`.env.example` records the names and safe local examples planned for Prompt 3:
+`.env.example` records the supported names and safe local examples:
 
 - `ORKAFIN_ENVIRONMENT`
 - `ORKAFIN_DATABASE_URL`
 - `ORKAFIN_LOG_LEVEL`
 - `ORKAFIN_ALLOWED_ORIGINS`
+- `ORKAFIN_CORS_ALLOW_CREDENTIALS`
+- `ORKAFIN_ACCEPT_INCOMING_REQUEST_IDS`
 - `ORKAFIN_AI_PROVIDER`
 - `ORKAFIN_AI_PROVIDER_API_KEY`
 - `ORKAFIN_CONFIRMATION_TTL_SECONDS`
 - `ORKAFIN_FIXTURE_MODE`
+- `ORKAFIN_DEBUG`
 
 Never commit `.env` or real provider credentials. Browser-provided identity and
 authorization values remain untrusted regardless of local configuration.
+
+`ORKAFIN_ALLOWED_ORIGINS` is a comma-separated, loopback-only allowlist.
+Credentialed wildcard CORS, non-SQLite database URLs, production environment
+mode, debug outside development, and an external provider without an API key are
+rejected during application construction. Debug mode never includes secrets or
+tracebacks in API responses.
+
+Every response includes an `X-Request-ID` header. The server accepts only a
+canonical UUID request ID from that header when
+`ORKAFIN_ACCEPT_INCOMING_REQUEST_IDS=true`; other values are replaced with a new
+UUID. Errors use the versioned `ApiError` JSON envelope and include the same ID.
