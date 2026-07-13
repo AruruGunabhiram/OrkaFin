@@ -1,9 +1,22 @@
-# Local Python environment
+# Python virtual environment
 .venv/
+venv/
 
-# Python-generated files
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python generated files
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Local configuration and secrets
-.env
+# IDE and operating system
+.DS_Store
+.vscode/
+.idea/
