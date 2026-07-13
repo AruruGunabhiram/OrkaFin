@@ -50,6 +50,16 @@ The architecture decision records are:
 | D-018 | The widget remains plain HTML, CSS, and JavaScript. | Sufficient for embedability and keeps local V1 small. |
 | D-019 | No production cloud architecture or live Apps Script integration is claimed. | Apps Script server runtime cannot be assumed to reach developer localhost. |
 | D-020 | Security-sensitive logs/audits store bounded structured facts, not raw bodies, notes, prompts, or secrets. | Minimizes secondary disclosure and replay risk. |
+| D-021 | Domain wire contracts use strict Pydantic models with literal schema version `v1`, forbidden extra fields, UTC timestamps, and immutable code-owned data policies. | Makes version, ownership, sensitivity, and persistence expectations mechanically visible before adapters or storage exist. |
+| D-022 | Canonical request and correlation IDs are lowercase UUID strings; app/catalog/action IDs use bounded explicit patterns; permissions are lowercase namespaced values. | Preserves Prompt 3 request-ID compatibility while preventing unbounded or ambiguous identifiers. |
+| D-023 | `ClientContextHint` and `ResolvedPageContext` are incompatible types with fixed trust labels; verified facts are request/adapter-response scoped. | Prevents client claims from being reinterpreted as adapter authorization and records the non-durable trust lifetime. |
+| D-024 | `CandidateSummary` is a request-scoped typed OrkaATS view with visible fields and safe redaction counts, not a persistence model. Notes are absent by default; any future excerpt is permanently labeled sensitive and untrusted and is never persisted. | Implements D-006, D-008, and D-015 without deciding the unresolved field policy in Q-002. |
+| D-025 | Assistant output uses closed response kinds with mechanical grounding rules, and successful action results require a matching owning-adapter receipt. | Makes unavailable/refusal behavior and the no-fabricated-success rule structural. |
+
+The Prompt 4 field shapes, module paths, ID patterns, and handling table are in
+[`DOMAIN_MODEL.md`](DOMAIN_MODEL.md). These entries clarify existing boundaries;
+they do not approve persistence, adapters, field permissions, or an executable
+action.
 
 ## Repository layout assumption for Prompt 2
 

@@ -2,37 +2,14 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
-from typing import Any
-
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
 
 from orkafin.core.logging import get_logger
 from orkafin.core.request_id import REQUEST_ID_HEADER, get_request_id, new_request_id
-
-
-class ErrorCode(StrEnum):
-    """Stable public error codes for V1 API clients."""
-
-    VALIDATION_ERROR = "validation_error"
-    DOMAIN_ERROR = "domain_error"
-    ADAPTER_UNAVAILABLE = "adapter_unavailable"
-    INTERNAL_ERROR = "internal_error"
-
-
-class ApiError(BaseModel):
-    """Versioned safe error response returned by every central handler."""
-
-    model_config = ConfigDict(frozen=True)
-
-    schema_version: str = "v1"
-    code: ErrorCode
-    message: str
-    request_id: str
-    details: dict[str, Any] | None = None
+from orkafin.domain.errors import ApiError, ErrorCode, SafeErrorDetails
+from orkafin.domain.identifiers import RequestId
 
 
 class DomainError(Exception):
@@ -58,13 +35,13 @@ def _error_response(
     status_code: int,
     code: ErrorCode,
     message: str,
-    details: dict[str, Any] | None = None,
+    details: SafeErrorDetails | None = None,
 ) -> JSONResponse:
     request_id = _request_id_for(request)
     body = ApiError(
         code=code,
         message=message,
-        request_id=request_id,
+        request_id=RequestId(root=request_id),
         details=details,
     ).model_dump(exclude_none=True, mode="json")
     return JSONResponse(
@@ -74,9 +51,9 @@ def _error_response(
     )
 
 
-def _validation_details(error: RequestValidationError) -> dict[str, list[str]]:
+def _validation_details(error: RequestValidationError) -> SafeErrorDetails:
     fields = [".".join(str(part) for part in issue["loc"]) for issue in error.errors()]
-    return {"fields": fields}
+    return SafeErrorDetails(root={"fields": tuple(fields)})
 
 
 def install_exception_handlers(application: FastAPI, *, debug: bool) -> None:
@@ -123,5 +100,7 @@ def install_exception_handlers(application: FastAPI, *, debug: bool) -> None:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             code=ErrorCode.INTERNAL_ERROR,
             message="An unexpected error occurred.",
-            details={"error_type": type(error).__name__} if debug else None,
+            details=(
+                SafeErrorDetails(root={"error_type": type(error).__name__}) if debug else None
+            ),
         )

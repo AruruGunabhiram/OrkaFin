@@ -5,10 +5,11 @@ pilot application, OrkaATS. It is not a generic chatbot and it is not the system
 of record for candidates. OrkaATS owns candidate data, candidate permissions,
 business validation, and every candidate write.
 
-Prompt 2 establishes the typed local service scaffold only. It includes an
-application factory and a versioned `GET /health` endpoint, but no database
-schema, business endpoint, knowledge loader, adapter implementation, widget, or
-model-provider integration.
+The current repository includes the typed local service scaffold, Prompt 3's safe
+configuration/error/correlation foundation, and Prompt 4's canonical versioned
+domain contracts. It includes an application factory and a versioned
+`GET /health` endpoint, but no database schema, business endpoint, knowledge
+loader, adapter implementation, widget, or model-provider integration.
 
 ## Local quick start
 
@@ -52,6 +53,7 @@ The local V1 source-of-truth documents are:
 - [Threat model](docs/THREAT_MODEL.md)
 - [Decisions, assumptions, and open questions](docs/DECISIONS.md)
 - [Future migration plan](docs/FUTURE_MIGRATION_PLAN.md)
+- [Domain model and ownership contracts](docs/DOMAIN_MODEL.md)
 - [ADR-001: local-first architecture](docs/adr/ADR-001-local-first-architecture.md)
 - [ADR-002: application data ownership](docs/adr/ADR-002-application-data-ownership.md)
 - [ADR-003: no vector database for initial V1](docs/adr/ADR-003-no-vector-database-for-initial-v1.md)
