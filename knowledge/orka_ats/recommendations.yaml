@@ -1,0 +1,23 @@
+recommendations:
+  - schema_version: v1
+    rule_id: review_recruitment_pipeline
+    title: Review the recruitment pipeline
+    description: Provisional rule metadata for suggesting the approved pipeline feature.
+    purpose: Offer a source-backed feature suggestion when the verified context supports it.
+    kind: feature
+    aliases: [pipeline_recommendation]
+    supported_roles: []
+    required_permissions: [candidate.view]
+    page_ids: [recruitment_pipeline]
+    feature_ids: [candidate_stage_tracking]
+    action_id: null
+    related_rule_ids: []
+    provenance:
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/recommendations/review_recruitment_pipeline

@@ -1,0 +1,25 @@
+schema_version: v1
+app_id: orka_ats
+catalog_files:
+  - actions.yaml
+  - app.yaml
+  - features.yaml
+  - pages.yaml
+  - permissions.yaml
+  - recommendations.yaml
+help_files:
+  - help/candidate_creation_form.md
+  - help/candidate_dashboard.md
+  - help/candidate_list.md
+  - help/candidate_profile.md
+  - help/recruiter_filters.md
+  - help/recruitment_pipeline.md
+provenance:
+  schema_version: v1
+  content_version: 0.1.0
+  revision: rev-001
+  status: active
+  verification_status: provisional
+  documentation_owner: OrkaATS product owner
+  last_reviewed_at: 2026-07-13T20:00:00Z
+  safe_reference: catalog://orka_ats/manifest/v0.1.0

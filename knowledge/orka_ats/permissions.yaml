@@ -1,0 +1,89 @@
+permissions:
+  - schema_version: v1
+    permission: candidate.view
+    title: View candidate information
+    purpose: Allow access only to candidate fields supplied by OrkaATS after permission filtering.
+    aliases: [view_candidates]
+    supported_roles:
+      - schema_version: v1
+        role_id: recruiter
+        display_name: Recruiter
+        owner_app_id: orka_ats
+    page_ids: [candidate_dashboard, candidate_list, candidate_profile, recruitment_pipeline, recruiter_filters]
+    feature_ids: [candidate_directory, candidate_profile_review, candidate_stage_tracking, recruiter_filtering]
+    action_ids: []
+    provenance:
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/permissions/candidate.view
+  - schema_version: v1
+    permission: candidate.create
+    title: Create candidate records
+    purpose: Identify the provisional permission expected for candidate creation.
+    aliases: [create_candidates]
+    supported_roles:
+      - schema_version: v1
+        role_id: recruiter
+        display_name: Recruiter
+        owner_app_id: orka_ats
+    page_ids: [candidate_creation_form]
+    feature_ids: [candidate_creation]
+    action_ids: []
+    provenance:
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/permissions/candidate.create
+  - schema_version: v1
+    permission: candidate.notes.view
+    title: View permitted candidate notes
+    purpose: Identify the explicit permission required before notes may be supplied by OrkaATS.
+    aliases: [view_candidate_notes]
+    supported_roles:
+      - schema_version: v1
+        role_id: recruiter
+        display_name: Recruiter
+        owner_app_id: orka_ats
+    page_ids: [candidate_profile]
+    feature_ids: [candidate_profile_review]
+    action_ids: []
+    provenance:
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/permissions/candidate.notes.view
+  - schema_version: v1
+    permission: candidate.update_start_date
+    title: Update a candidate start date
+    purpose: Reserve a provisional permission name for the unapproved action proof of concept.
+    aliases: [update_start_date]
+    supported_roles:
+      - schema_version: v1
+        role_id: administrator
+        display_name: Administrator
+        owner_app_id: orka_ats
+    page_ids: []
+    feature_ids: []
+    action_ids: []
+    provenance:
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/permissions/candidate.update_start_date

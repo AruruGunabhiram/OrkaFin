@@ -1,0 +1,42 @@
+actions:
+  - schema_version: v1
+    action:
+      schema_version: v1
+      action_id: candidate.update_start_date
+      owner_app_id: orka_ats
+      action_version: 0.1.0
+      revision: rev-001
+      title: Update start date
+      description: Disabled provisional action contract pending explicit OrkaATS approval.
+      target_entity_type: candidate
+      required_permission: candidate.update_start_date
+      parameters:
+        - schema_version: v1
+          parameter_id: start_date
+          display_name: Start date
+          parameter_type: date
+          required: true
+          sensitive: false
+          description: Proposed calendar date owned and validated by OrkaATS.
+      confirmation_required: true
+      admin_approval_required: false
+      reversible: true
+      sensitivity: low
+      audit_required: true
+      status: disabled
+      safe_reference: catalog://orka_ats/actions/candidate.update_start_date
+    aliases: [update_start_date]
+    purpose: Preserve a non-executable placeholder until action approval and business rules are confirmed.
+    supported_roles: []
+    page_ids: []
+    feature_ids: []
+    related_action_ids: []
+    provenance:
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: disabled
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/actions/candidate.update_start_date

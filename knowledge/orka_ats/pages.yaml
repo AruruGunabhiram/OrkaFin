@@ -1,0 +1,103 @@
+pages:
+  - schema_version: v1
+    app_id: orka_ats
+    page_id: candidate_dashboard
+    title: Candidate dashboard
+    purpose: Provide a provisional landing area for candidate-related information.
+    aliases: [dashboard]
+    supported_roles: []
+    feature_ids: [candidate_directory]
+    required_permissions: [candidate.view]
+    instruction_steps: []
+    related_page_ids: [candidate_list]
+    related_feature_ids: [candidate_stage_tracking]
+    available_action_ids: []
+    provenance: &page_provenance_dashboard
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/pages/candidate_dashboard
+  - schema_version: v1
+    app_id: orka_ats
+    page_id: candidate_list
+    title: Candidate list
+    purpose: Provide a provisional list-oriented view of candidates.
+    aliases: [candidates]
+    supported_roles: []
+    feature_ids: [candidate_directory]
+    required_permissions: [candidate.view]
+    instruction_steps: []
+    related_page_ids: [candidate_dashboard, candidate_profile, recruiter_filters]
+    related_feature_ids: [candidate_profile_review, recruiter_filtering]
+    available_action_ids: []
+    provenance:
+      <<: *page_provenance_dashboard
+      safe_reference: catalog://orka_ats/pages/candidate_list
+  - schema_version: v1
+    app_id: orka_ats
+    page_id: candidate_profile
+    title: Candidate profile
+    purpose: Present a permission-filtered provisional view of one candidate.
+    aliases: [profile]
+    supported_roles: []
+    feature_ids: [candidate_profile_review]
+    required_permissions: [candidate.view]
+    instruction_steps: []
+    related_page_ids: [candidate_list]
+    related_feature_ids: [candidate_directory]
+    available_action_ids: []
+    provenance:
+      <<: *page_provenance_dashboard
+      safe_reference: catalog://orka_ats/pages/candidate_profile
+  - schema_version: v1
+    app_id: orka_ats
+    page_id: candidate_creation_form
+    title: Candidate creation form
+    purpose: Identify a provisional location for creating a candidate record.
+    aliases: [create_candidate]
+    supported_roles: []
+    feature_ids: [candidate_creation]
+    required_permissions: [candidate.create]
+    instruction_steps: []
+    related_page_ids: [candidate_list]
+    related_feature_ids: [candidate_directory]
+    available_action_ids: []
+    provenance:
+      <<: *page_provenance_dashboard
+      safe_reference: catalog://orka_ats/pages/candidate_creation_form
+  - schema_version: v1
+    app_id: orka_ats
+    page_id: recruitment_pipeline
+    title: Recruitment pipeline
+    purpose: Identify a provisional view of candidate recruitment stages.
+    aliases: [pipeline]
+    supported_roles: []
+    feature_ids: [candidate_stage_tracking]
+    required_permissions: [candidate.view]
+    instruction_steps: []
+    related_page_ids: [candidate_dashboard, candidate_list]
+    related_feature_ids: [candidate_directory]
+    available_action_ids: []
+    provenance:
+      <<: *page_provenance_dashboard
+      safe_reference: catalog://orka_ats/pages/recruitment_pipeline
+  - schema_version: v1
+    app_id: orka_ats
+    page_id: recruiter_filters
+    title: Recruiter filters
+    purpose: Identify provisional filters used to narrow a candidate list.
+    aliases: [filters]
+    supported_roles: []
+    feature_ids: [recruiter_filtering]
+    required_permissions: [candidate.view]
+    instruction_steps: []
+    related_page_ids: [candidate_list]
+    related_feature_ids: [candidate_directory]
+    available_action_ids: []
+    provenance:
+      <<: *page_provenance_dashboard
+      safe_reference: catalog://orka_ats/pages/recruiter_filters

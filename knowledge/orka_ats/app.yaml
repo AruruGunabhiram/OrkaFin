@@ -1,0 +1,46 @@
+schema_version: v1
+metadata:
+  schema_version: v1
+  app_id: orka_ats
+  display_name: OrkaATS
+  description: Starter catalog metadata for the OrkaATS recruiting application.
+  app_version: 0.1.0
+  adapter_contract_version: 0.1.0
+  status: active
+aliases:
+  - ats
+  - recruiting
+purpose: Identify the approved starter OrkaATS knowledge boundary for local V1.
+supported_roles:
+  - schema_version: v1
+    role_id: recruiter
+    display_name: Recruiter
+    owner_app_id: orka_ats
+  - schema_version: v1
+    role_id: administrator
+    display_name: Administrator
+    owner_app_id: orka_ats
+required_permissions: []
+page_ids:
+  - candidate_dashboard
+  - candidate_list
+  - candidate_profile
+  - candidate_creation_form
+  - recruitment_pipeline
+  - recruiter_filters
+feature_ids:
+  - candidate_creation
+  - candidate_directory
+  - candidate_profile_review
+  - candidate_stage_tracking
+  - recruiter_filtering
+related_app_ids: []
+provenance:
+  schema_version: v1
+  content_version: 0.1.0
+  revision: rev-001
+  status: active
+  verification_status: provisional
+  documentation_owner: OrkaATS product owner
+  last_reviewed_at: 2026-07-13T20:00:00Z
+  safe_reference: catalog://orka_ats/app/metadata

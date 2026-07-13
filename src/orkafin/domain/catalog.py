@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import ClassVar
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from orkafin.domain.base import (
     DataClassification,
@@ -118,6 +118,15 @@ class FeatureCatalogItem(DomainModel):
     available_action_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=25)
     provenance: CatalogProvenance
 
+    @model_validator(mode="after")
+    def require_verified_steps(self) -> FeatureCatalogItem:
+        if (
+            self.instruction_steps
+            and self.provenance.verification_status is not VerificationStatus.VERIFIED
+        ):
+            raise ValueError("instruction steps require verified provenance")
+        return self
+
 
 class PageCatalogItem(DomainModel):
     """Approved or provisional metadata for one application page."""
@@ -130,9 +139,23 @@ class PageCatalogItem(DomainModel):
     purpose: ShortText
     route_hint: ShortText | None = None
     aliases: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=25)
+    supported_roles: tuple[Role, ...] = Field(default=(), max_length=25)
     feature_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
     required_permissions: tuple[Permission, ...] = Field(default=(), max_length=50)
+    instruction_steps: tuple[ShortText, ...] = Field(default=(), max_length=25)
+    related_page_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
+    related_feature_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
+    available_action_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=25)
     provenance: CatalogProvenance
+
+    @model_validator(mode="after")
+    def require_verified_steps(self) -> PageCatalogItem:
+        if (
+            self.instruction_steps
+            and self.provenance.verification_status is not VerificationStatus.VERIFIED
+        ):
+            raise ValueError("instruction steps require verified provenance")
+        return self
 
 
 class HelpArticle(DomainModel):
@@ -155,6 +178,7 @@ class HelpArticle(DomainModel):
     article_id: LowercaseIdentifier
     title: ShortText
     summary: ShortText
+    purpose: ShortText = "Approved catalog help content."
     content: LongText
     content_trust_label: str = Field(
         default="controlled_content_not_instruction",
@@ -163,7 +187,21 @@ class HelpArticle(DomainModel):
     )
     aliases: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=25)
     tags: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
+    supported_roles: tuple[Role, ...] = Field(default=(), max_length=25)
     page_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
     feature_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
     required_permissions: tuple[Permission, ...] = Field(default=(), max_length=50)
+    instruction_steps: tuple[ShortText, ...] = Field(default=(), max_length=25)
+    related_article_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
+    related_feature_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
+    available_action_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=25)
     provenance: CatalogProvenance
+
+    @model_validator(mode="after")
+    def require_verified_steps(self) -> HelpArticle:
+        if (
+            self.instruction_steps
+            and self.provenance.verification_status is not VerificationStatus.VERIFIED
+        ):
+            raise ValueError("instruction steps require verified provenance")
+        return self

@@ -1,0 +1,92 @@
+features:
+  - schema_version: v1
+    app_id: orka_ats
+    feature_id: candidate_directory
+    name: Candidate directory
+    description: Provisional catalog concept for locating candidates through the dashboard or list.
+    user_purpose: Find approved candidate information after OrkaATS applies visibility rules.
+    aliases: [candidate_search]
+    supported_roles: []
+    required_permissions: [candidate.view]
+    page_ids: [candidate_dashboard, candidate_list]
+    instruction_steps: []
+    related_feature_ids: [candidate_profile_review, recruiter_filtering]
+    related_app_ids: []
+    available_action_ids: []
+    provenance: &feature_provenance_directory
+      schema_version: v1
+      content_version: 0.1.0
+      revision: rev-001
+      status: active
+      verification_status: provisional
+      documentation_owner: OrkaATS product owner
+      last_reviewed_at: 2026-07-13T20:00:00Z
+      safe_reference: catalog://orka_ats/features/candidate_directory
+  - schema_version: v1
+    app_id: orka_ats
+    feature_id: candidate_profile_review
+    name: Candidate profile review
+    description: Provisional catalog concept for reviewing a permission-filtered candidate profile.
+    user_purpose: Review candidate ID, name, email, recruiter, dates, resume link, and only permitted notes.
+    aliases: [candidate_details]
+    supported_roles: []
+    required_permissions: [candidate.view]
+    page_ids: [candidate_profile]
+    instruction_steps: []
+    related_feature_ids: [candidate_directory]
+    related_app_ids: []
+    available_action_ids: []
+    provenance:
+      <<: *feature_provenance_directory
+      safe_reference: catalog://orka_ats/features/candidate_profile_review
+  - schema_version: v1
+    app_id: orka_ats
+    feature_id: candidate_creation
+    name: Candidate creation
+    description: Provisional catalog concept for creating a candidate record.
+    user_purpose: Start a candidate record while leaving exact fields and controls for OrkaATS verification.
+    aliases: [create_candidate]
+    supported_roles: []
+    required_permissions: [candidate.create]
+    page_ids: [candidate_creation_form]
+    instruction_steps: []
+    related_feature_ids: [candidate_directory]
+    related_app_ids: []
+    available_action_ids: []
+    provenance:
+      <<: *feature_provenance_directory
+      safe_reference: catalog://orka_ats/features/candidate_creation
+  - schema_version: v1
+    app_id: orka_ats
+    feature_id: candidate_stage_tracking
+    name: Candidate stage tracking
+    description: Provisional catalog concept for viewing recruitment stage information.
+    user_purpose: Review a candidate's recruitment stage without assuming transition controls or rules.
+    aliases: [stage_tracking]
+    supported_roles: []
+    required_permissions: [candidate.view]
+    page_ids: [candidate_dashboard, recruitment_pipeline]
+    instruction_steps: []
+    related_feature_ids: [candidate_directory]
+    related_app_ids: []
+    available_action_ids: []
+    provenance:
+      <<: *feature_provenance_directory
+      safe_reference: catalog://orka_ats/features/candidate_stage_tracking
+  - schema_version: v1
+    app_id: orka_ats
+    feature_id: recruiter_filtering
+    name: Recruiter filtering
+    description: Provisional catalog concept for narrowing candidate information by recruiter.
+    user_purpose: Narrow a candidate list when OrkaATS exposes a verified recruiter filter.
+    aliases: [recruiter_filter]
+    supported_roles: []
+    required_permissions: [candidate.view]
+    page_ids: [candidate_list, recruiter_filters]
+    instruction_steps: []
+    related_feature_ids: [candidate_directory]
+    related_app_ids: []
+    available_action_ids: []
+    provenance:
+      <<: *feature_provenance_directory
+      safe_reference: catalog://orka_ats/features/recruiter_filtering

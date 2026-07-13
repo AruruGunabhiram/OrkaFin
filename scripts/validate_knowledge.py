@@ -1,23 +1,16 @@
-"""Validate that the version-controlled knowledge scaffold is present.
-
-Prompt 2 intentionally has no catalog schema or loader. Prompt 6 will replace this
-structural check with catalog-aware validation while retaining the same command.
-"""
+"""Compatibility wrapper for the Prompt 6 catalog-aware validation command."""
 
 from __future__ import annotations
 
-from pathlib import Path
+import sys
+
+from orkafin.knowledge.validate import main as validate_main
 
 
 def main() -> int:
-    repository_root = Path(__file__).resolve().parents[1]
-    knowledge_root = repository_root / "knowledge" / "orka_ats"
-    if not knowledge_root.is_dir():
-        print(f"Missing knowledge scaffold: {knowledge_root}")
-        return 1
-
-    print(f"Knowledge scaffold is present: {knowledge_root}")
-    return 0
+    if len(sys.argv) == 1:
+        sys.argv.append("knowledge/orka_ats")
+    return validate_main()
 
 
 if __name__ == "__main__":
