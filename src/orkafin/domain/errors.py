@@ -42,6 +42,9 @@ class ErrorCode(StrEnum):
 
     VALIDATION_ERROR = "validation_error"
     DOMAIN_ERROR = "domain_error"
+    IDENTITY_UNVERIFIED = "identity_unverified"
+    CONTEXT_ACCESS_DENIED = "context_access_denied"
+    CANDIDATE_ACCESS_DENIED = "candidate_access_denied"
     ADAPTER_UNAVAILABLE = "adapter_unavailable"
     INTERNAL_ERROR = "internal_error"
 

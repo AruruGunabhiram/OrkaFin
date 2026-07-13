@@ -44,8 +44,10 @@ from orkafin.domain.context import (
     AppStatus,
     ClientContextHint,
     ClientSelectedEntityHint,
+    ContextComponentTrust,
     ContextVerificationSource,
     IdentityVerificationStatus,
+    ResolvedContextTrust,
     ResolvedPageContext,
     Role,
     SelectedEntityRef,
@@ -316,6 +318,40 @@ def test_context_models_keep_client_claims_separate_from_verified_facts() -> Non
     resolved = ResolvedPageContext(
         verification_source=ContextVerificationSource.LOCAL_FIXTURE,
         adapter_response_id="adapter-response-001",
+        component_trust=ResolvedContextTrust(
+            app=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="adapter-response-001",
+            ),
+            identity=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="identity-response-001",
+            ),
+            page=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="page-response-001",
+            ),
+            workspace=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="adapter-response-001",
+            ),
+            selected_entity=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="adapter-response-001",
+            ),
+            permissions=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="permissions-response-001",
+            ),
+            available_actions=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="actions-response-001",
+            ),
+            candidate_summary=ContextComponentTrust(
+                verification_source=ContextVerificationSource.LOCAL_FIXTURE,
+                source_response_id="adapter-response-001",
+            ),
+        ),
         request_id=request_id(),
         app=app_metadata(),
         page_id="candidate_profile",

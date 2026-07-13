@@ -1,6 +1,6 @@
 # Local V1 Architecture
 
-**Status:** Frozen for Prompt 1 human review
+**Status:** Prompt 1 boundary retained; Prompt 11 context response pending mandatory human review
 
 ## Architectural intent
 
@@ -129,6 +129,34 @@ authorization invalidation, and retention.
    workflow. Sensitive reads or denials receive safe audit records where required.
 7. The API returns a source-aware response, refusal, or unavailable result. It
    never represents guidance as an executed action.
+
+## Prompt 11 trusted context resolution flow
+
+`POST /api/v1/contexts:resolve` is implemented as thin HTTP routing over
+`TrustedContextResolutionService`; authorization policy remains outside the route.
+The service receives the untrusted `ClientContextHint` separately from a
+`TrustedSessionResolver`. The latter is supplied by server/session composition and
+is never populated from request email, user ID, role, permission, action, or
+selected-record claims.
+
+The flow is fail-closed and ordered:
+
+1. resolve the configured adapter for the hinted app;
+2. ask the adapter to resolve the trusted session subject;
+3. resolve adapter-owned page, workspace, and selection context, then validate
+   the current page through page metadata;
+4. fetch fresh authorization facts and independently fetch available actions;
+5. evaluate app and page grants, then require `candidate.view` plus the exact
+   selected record grant before asking for a candidate summary;
+6. convert only already filtered adapter fields to the request-scoped domain
+   summary and commit the sensitive-read audit before returning it.
+
+`ResolvedPageContext.component_trust` carries response-lifetime source evidence
+for app, identity, page, workspace, selection, permissions, available actions,
+and candidate summary. Optional evidence is `null` exactly when the optional
+component is absent. The response never contains the original hint or upgrades a
+client claim into trusted data. See [`API.md`](API.md) for the reviewed shape and
+safe error codes.
 
 ## Confirmed-action request flow (optional and disabled initially)
 

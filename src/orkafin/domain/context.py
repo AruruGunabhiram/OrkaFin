@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, ClassVar, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from orkafin.domain.base import (
     DataClassification,
@@ -244,12 +244,52 @@ class ClientContextHint(DomainModel):
     claimed_available_action_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
     client_request_id_hint: RequestId | None = None
 
+    @field_validator(
+        "claimed_role_ids",
+        "claimed_permissions",
+        "claimed_available_action_ids",
+        mode="before",
+    )
+    @classmethod
+    def accept_json_arrays(cls, value: object) -> object:
+        """Accept the JSON array representation while retaining strict Python tuples."""
+        return tuple(value) if isinstance(value, list) else value
+
 
 class ContextVerificationSource(StrEnum):
     """Trusted resolver used to produce a resolved context."""
 
     LOCAL_FIXTURE = "local_fixture"
     APPLICATION_ADAPTER = "application_adapter"
+
+
+class ContextComponentTrust(DomainModel):
+    """Source evidence for one resolved component, never for a client hint."""
+
+    data_policy: ClassVar[ModelDataPolicy] = ModelDataPolicy(
+        owner=DataOwner.ORKAFIN,
+        classification=DataClassification.INTERNAL,
+        persistence=PersistencePolicy.REQUEST_SCOPED_ONLY,
+    )
+
+    trust_label: Literal["trusted_for_response_lifetime"] = "trusted_for_response_lifetime"
+    verification_source: ContextVerificationSource
+    source_response_id: Identifier
+
+
+class ResolvedContextTrust(DomainModel):
+    """Per-component trust and provenance for a resolved page context."""
+
+    data_policy: ClassVar[ModelDataPolicy] = ContextComponentTrust.data_policy
+
+    app: ContextComponentTrust
+    identity: ContextComponentTrust
+    page: ContextComponentTrust
+    workspace: ContextComponentTrust
+    selected_entity: ContextComponentTrust | None = None
+    permissions: ContextComponentTrust
+    available_actions: ContextComponentTrust
+    candidate_summary: ContextComponentTrust | None = None
 
 
 class ResolvedPageContext(DomainModel):
@@ -276,6 +316,7 @@ class ResolvedPageContext(DomainModel):
     trust_label: Literal["verified_for_response_lifetime"] = "verified_for_response_lifetime"
     verification_source: ContextVerificationSource
     adapter_response_id: Identifier
+    component_trust: ResolvedContextTrust
     request_id: RequestId
     app: AppMetadata
     page_id: LowercaseIdentifier
@@ -305,6 +346,25 @@ class ResolvedPageContext(DomainModel):
                 raise ValueError("candidate summary must match the selected entity")
             if self.candidate_summary.valid_for_request_id != self.request_id:
                 raise ValueError("candidate summary must be bound to the resolved request")
+        if (self.component_trust.selected_entity is None) != (self.selected_entity is None):
+            raise ValueError("selected entity trust evidence must match selected entity presence")
+        if (self.component_trust.candidate_summary is None) != (self.candidate_summary is None):
+            raise ValueError("candidate summary trust evidence must match summary presence")
+        context_response_ids = [
+            self.component_trust.app.source_response_id,
+            self.component_trust.workspace.source_response_id,
+        ]
+        if self.component_trust.selected_entity is not None:
+            context_response_ids.append(self.component_trust.selected_entity.source_response_id)
+        if any(response_id != self.adapter_response_id for response_id in context_response_ids):
+            raise ValueError("application context trust must match the context adapter response")
+        if (
+            self.candidate_summary is not None
+            and self.component_trust.candidate_summary is not None
+            and self.component_trust.candidate_summary.source_response_id
+            != self.candidate_summary.source_adapter_response_id
+        ):
+            raise ValueError("candidate summary trust must match the summary adapter response")
         if self.valid_until < self.resolved_at:
             raise ValueError("valid_until must not precede resolved_at")
         if len(set(self.permissions)) != len(self.permissions):

@@ -58,6 +58,24 @@ parameters, previews, and adapter receipts. This excludes browser claims,
 candidate summaries and notes, raw model prompts, secrets, credentials, tokens,
 and unknown JSON keys before persistence is reached.
 
+## Prompt 11 context audit integration
+
+The context service uses the existing append-only `audit_records` table; no schema
+or Alembic revision changed. `DatabaseAuditRecorder` owns a short transaction for
+each record so a sensitive read is committed before candidate data is returned and
+a denial is committed before its safe error is raised.
+
+| Event | Outcome | Minimized details |
+|---|---|---|
+| `candidate_read` | `allowed` | Visible/redacted counts, redaction boolean, `application_adapter` source label |
+| `permission_denied` | `denied` | Check scope and stable authorization decision code |
+| `identity_denied` | `denied` | Stable `identity_unverified` code; no actor or target |
+
+The separate bounded target reference may identify the selected candidate for
+security review. Details never store visible or hidden field IDs/values, browser
+claims, raw candidate notes, or unrestricted adapter responses. These records are
+not written to routine logs and remain unavailable through public APIs.
+
 ## Retention assumptions
 
 No retention duration is approved yet (Q-008 and Q-012). For the local pilot:

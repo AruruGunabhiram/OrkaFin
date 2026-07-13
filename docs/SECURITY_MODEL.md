@@ -49,6 +49,12 @@ permissions, workspace, and available actions remain only `ClientContextHint`
 claims. `LocalFixtureIdentityResolver` ignores them, including when a browser
 claims administrator privileges while the selected fixture is a limited viewer.
 
+For the Prompt 11 endpoint, `TrustedSessionResolver` is the only source of the
+opaque subject reference passed to `resolve_current_user`. It receives app and
+server request IDs, not the request body. The production-default implementation
+returns no subject; `StaticTrustedSessionResolver` is test-only. No identity header
+is accepted as authority by this endpoint.
+
 A local fixture identity is a test harness, not production authentication. It does not prove Google
 Workspace identity resolution, Apps Script deployment behavior, request
 authenticity, or protection against an attacker who can access the local service.
@@ -98,6 +104,12 @@ Activating notes in a real adapter still requires the previously documented revi
 Authorization is re-evaluated when context is resolved and again immediately
 before any optional state change. Cached permission decisions cannot outlive the
 adapter response unless an approved TTL and revocation design exists.
+
+`ResolvedPageContext.component_trust` names the adapter response supporting each
+returned component. App/workspace/selection bind to the resolved-context response;
+identity, page, permissions, actions, and candidate summary bind to their own
+operation responses. Missing optional selection/summary values have no trust
+evidence object, preventing a fabricated candidate from appearing verified.
 
 The provisional fixture users, exact grants, field matrix, denial codes, and human
 checkpoint are recorded in [`PERMISSION_MODEL.md`](PERMISSION_MODEL.md).

@@ -16,6 +16,8 @@ class DomainError(Exception):
     """A known application failure with a safe, generic public message."""
 
     public_message = "The request could not be completed."
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = ErrorCode.DOMAIN_ERROR
 
 
 class AdapterError(Exception):
@@ -77,8 +79,8 @@ def install_exception_handlers(application: FastAPI, *, debug: bool) -> None:
         logger.warning("domain_error", extra={"error_type": type(error).__name__})
         return _error_response(
             request=request,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code=ErrorCode.DOMAIN_ERROR,
+            status_code=error.status_code,
+            code=error.error_code,
             message=error.public_message,
         )
 
@@ -89,7 +91,7 @@ def install_exception_handlers(application: FastAPI, *, debug: bool) -> None:
             request=request,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             code=ErrorCode.ADAPTER_UNAVAILABLE,
-            message=error.public_message,
+            message=f"{error.public_message} No application data was returned.",
         )
 
     @application.exception_handler(Exception)

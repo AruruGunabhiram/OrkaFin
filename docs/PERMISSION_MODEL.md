@@ -1,7 +1,7 @@
 # Local V1 Permission Model
 
-**Status:** Provisional fixture policy; human approval required before Prompt 8
-**Scope:** Prompt 7 local identity test harness, authorization evaluator, and candidate redaction
+**Status:** Prompt 7 fixture policy retained; Prompt 11 context enforcement pending human review
+**Scope:** Local identity harness, authorization evaluator/redaction, and Prompt 11 context endpoint
 
 ## Boundary and decision rule
 
@@ -32,6 +32,8 @@ fixture matrix; OrkaFin must never broaden it.
 | `TrustedAuthorizationFacts` | Carry explicit app, page, record, field, permission, and available-action facts | Absent facts deny; app denial cannot carry narrower grants |
 | `PermissionEvaluator` | Check app, page, permission, record, field, and action scopes | Every omitted/unknown scope denies; role is never consulted for grants |
 | `CandidateSummaryRedactor` | Construct `CandidateSummary` from allowed source fields only | Identity/record denial returns no summary; hidden IDs/values are absent |
+| `TrustedContextResolutionService` | Orchestrate adapter identity/context/page/permission/action calls and gate candidate retrieval | Unverified identity returns no context; app/page/record denials are audited before safe errors |
+| `TrustedSessionResolver` | Supply an opaque subject from server/session state, separate from the request body | Default resolver supplies no subject; static resolver is test-only |
 
 `fixtures/users.yaml` is deliberately marked
 `synthetic_local_identity_test_harness` and
@@ -113,6 +115,28 @@ Decision objects contain only the check scope, boolean result, stable code, and
 safe message. Requested IDs, emails, role claims, hidden field names, permission
 names, and values are not echoed. Audit services may record the stable code with
 their separately bounded references under the audit data policy.
+
+## Prompt 11 endpoint enforcement
+
+The context service constructs `AuthorizationContext` only from the
+adapter-verified `UserIdentity` and fresh `TrustedAuthorizationFacts`. It checks
+app and page before returning context. For a selected candidate it checks the
+exact `SelectedEntityRef` and `candidate.view` before calling
+`get_selected_entity_summary`. Browser permissions/actions are not unioned with
+adapter results. Returned available actions are the conservative intersection of
+the adapter's fresh authorization facts and its separate available-actions
+response.
+
+The selected candidate summary requests the eight established ordinary candidate
+fields and never requests notes. The adapter returns only allowed fields; the
+limited-viewer fixture therefore returns three visible fields, five redacted
+fields, no action, and only `candidate.view` even when the browser claims to be an
+administrator. A record-swap to the private fixture fails with
+`record_access_denied`, creates a minimized `permission_denied` audit, and returns
+the safe `candidate_access_denied` API code without confirming the record.
+
+This endpoint does not make the existing role labels granting, enable a catalog
+action, or authorize any write.
 
 ## Action boundary
 

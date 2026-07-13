@@ -20,7 +20,7 @@ from orkafin.domain.base import (
     ShortText,
     UtcDatetime,
 )
-from orkafin.domain.identifiers import Permission, RequestId
+from orkafin.domain.identifiers import Permission, RequestId, SafeReference
 
 
 class CandidateFieldSensitivity(StrEnum):
@@ -71,6 +71,15 @@ class CandidateNumberValue(DomainModel):
     value: int | float
 
 
+class CandidateIntegerValue(DomainModel):
+    """Strict integer candidate value preserving adapter type information."""
+
+    data_policy: ClassVar[ModelDataPolicy] = CandidateTextValue.data_policy
+
+    kind: Literal["integer"] = "integer"
+    value: int
+
+
 class CandidateBooleanValue(DomainModel):
     """Strict boolean candidate value."""
 
@@ -80,12 +89,23 @@ class CandidateBooleanValue(DomainModel):
     value: bool
 
 
+class CandidateReferenceValue(DomainModel):
+    """Safe internal candidate reference without credentials or query data."""
+
+    data_policy: ClassVar[ModelDataPolicy] = CandidateTextValue.data_policy
+
+    kind: Literal["reference"] = "reference"
+    value: SafeReference
+
+
 CandidateFieldValue = Annotated[
     CandidateTextValue
     | CandidateDateValue
     | CandidateTimestampValue
+    | CandidateIntegerValue
     | CandidateNumberValue
-    | CandidateBooleanValue,
+    | CandidateBooleanValue
+    | CandidateReferenceValue,
     Field(discriminator="kind"),
 ]
 

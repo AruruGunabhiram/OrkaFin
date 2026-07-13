@@ -12,6 +12,11 @@ from orkafin.application.auth.resolver import (
     IdentityResolver,
     LocalFixtureIdentityResolver,
 )
+from orkafin.application.auth.session import (
+    MissingTrustedSessionResolver,
+    StaticTrustedSessionResolver,
+    TrustedSessionResolver,
+)
 
 __all__ = [
     "FixtureConfigurationError",
@@ -21,5 +26,8 @@ __all__ = [
     "LocalFixtureIdentityResolver",
     "LocalFixtureUser",
     "LocalFixtureUserSet",
+    "MissingTrustedSessionResolver",
+    "StaticTrustedSessionResolver",
+    "TrustedSessionResolver",
     "load_local_fixture_users",
 ]
