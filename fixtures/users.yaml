@@ -1,0 +1,133 @@
+fixture_kind: synthetic_local_identity_test_harness
+policy_status: provisional_human_review_required
+users:
+  - fixture_id: admin
+    identity:
+      verification_status: local_fixture_verified
+      user_id: fixture-user-admin
+      display_name: Synthetic Administrator
+      email: admin.fixture@example.invalid
+      role:
+        role_id: administrator
+        display_name: Administrator
+        owner_app_id: orka_ats
+    authorization:
+      source: local_fixture
+      adapter_response_id: fixture-authz-admin
+      app_id: orka_ats
+      app_access: true
+      allowed_page_ids:
+        - candidate_creation_form
+        - candidate_dashboard
+        - candidate_list
+        - candidate_profile
+        - recruiter_filters
+        - recruitment_pipeline
+      permissions:
+        - candidate.create
+        - candidate.update_start_date
+        - candidate.view
+      records:
+        - record:
+            app_id: orka_ats
+            entity_type: candidate
+            entity_id: CAND-1001
+          visible_field_ids:
+            - created_at
+            - display_name
+            - email
+            - recruiter
+            - recruitment_stage
+            - resume_link
+            - start_date
+            - updated_at
+        - record:
+            app_id: orka_ats
+            entity_type: candidate
+            entity_id: CAND-1002
+          visible_field_ids:
+            - created_at
+            - display_name
+            - email
+            - recruiter
+            - recruitment_stage
+            - resume_link
+            - start_date
+            - updated_at
+      available_action_ids: []
+
+  - fixture_id: recruiter
+    identity:
+      verification_status: local_fixture_verified
+      user_id: fixture-user-recruiter
+      display_name: Synthetic Recruiter
+      email: recruiter.fixture@example.invalid
+      role:
+        role_id: recruiter
+        display_name: Recruiter
+        owner_app_id: orka_ats
+    authorization:
+      source: local_fixture
+      adapter_response_id: fixture-authz-recruiter
+      app_id: orka_ats
+      app_access: true
+      allowed_page_ids:
+        - candidate_creation_form
+        - candidate_dashboard
+        - candidate_list
+        - candidate_profile
+        - recruiter_filters
+        - recruitment_pipeline
+      permissions:
+        - candidate.create
+        - candidate.view
+      records:
+        - record:
+            app_id: orka_ats
+            entity_type: candidate
+            entity_id: CAND-1001
+          visible_field_ids:
+            - display_name
+            - email
+            - recruiter
+            - recruitment_stage
+            - resume_link
+            - start_date
+      available_action_ids: []
+
+  - fixture_id: limited_viewer
+    identity:
+      verification_status: local_fixture_verified
+      user_id: fixture-user-limited
+      display_name: Synthetic Limited Viewer
+      email: limited.fixture@example.invalid
+      role:
+        role_id: limited_viewer
+        display_name: Limited viewer
+        owner_app_id: orka_ats
+    authorization:
+      source: local_fixture
+      adapter_response_id: fixture-authz-limited
+      app_id: orka_ats
+      app_access: true
+      allowed_page_ids:
+        - candidate_dashboard
+        - candidate_list
+        - candidate_profile
+        - recruitment_pipeline
+      permissions:
+        - candidate.view
+      records:
+        - record:
+            app_id: orka_ats
+            entity_type: candidate
+            entity_id: CAND-1001
+          visible_field_ids:
+            - display_name
+            - recruiter
+            - recruitment_stage
+      available_action_ids: []
+
+  - fixture_id: unverified
+    identity:
+      verification_status: unverified

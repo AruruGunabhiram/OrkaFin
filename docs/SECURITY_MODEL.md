@@ -1,6 +1,6 @@
 # Local V1 Security Model
 
-**Status:** Frozen for Prompt 1 human review  
+**Status:** Prompt 7 provisional local authorization policy; human review required before Prompt 8
 **Security posture:** Local pilot with explicit mocks; not production authentication
 
 ## Security objectives
@@ -42,14 +42,18 @@ action authorization.
 ## Identity and authentication
 
 The local demo selects from explicit synthetic identities on the trusted server
-side. Browser-submitted email, user ID, role, permissions, workspace, and
-available actions are ignored as authorization facts. Tests must include a browser
-claiming administrator privileges while the resolver returns a limited identity.
+side. `IdentityResolutionRequest.trusted_subject_id` must be constructed from
+server configuration or another trusted application mechanism; its trust label is
+documentation, not authentication. Browser-submitted email, user ID, role,
+permissions, workspace, and available actions remain only `ClientContextHint`
+claims. `LocalFixtureIdentityResolver` ignores them, including when a browser
+claims administrator privileges while the selected fixture is a limited viewer.
 
-A local mock identity is not production authentication. It does not prove Google
+A local fixture identity is a test harness, not production authentication. It does not prove Google
 Workspace identity resolution, Apps Script deployment behavior, request
 authenticity, or protection against an attacker who can access the local service.
-Unverified or missing identity receives no candidate data.
+Unknown, unverified, or missing identity receives no candidate data. The synthetic
+fixtures contain no passwords, tokens, real email addresses, or real people.
 
 Before live Apps Script use, the team must define and test:
 
@@ -61,27 +65,42 @@ Before live Apps Script use, the team must define and test:
 
 ## Authorization and redaction
 
-Authorization is deny by default and evaluated outside API route handlers. Role is
-an input to policy, not sufficient proof of access. The permission evaluator uses
-adapter-verified facts for:
+Authorization is deny by default and evaluated by application services outside API
+route handlers. Role is identity metadata and never creates a grant. The
+`PermissionEvaluator` accepts a verified identity and a separate
+`TrustedAuthorizationFacts` value produced by the owning adapter or explicit local
+test harness. It uses those facts for:
 
 - application access;
 - current page access;
 - record visibility or assignment;
 - field visibility;
 - action availability and explicit namespaced permission;
-- current business-state eligibility.
+- action availability (which may already reflect current business-state
+  eligibility) and a separate explicit permission.
 
-Permissions use explicit names such as `candidate.view` and, if later approved,
-`candidate.update_start_date`. Unknown permissions do not grant access. Candidate
-summaries are constructed from an allowlist and include safe redaction metadata,
-not the hidden values. Candidate notes are excluded by default, including for an
-administrator fixture. If notes are ever introduced, they require an explicit
-field permission, minimization, an untrusted/sensitive label, and a reviewed ADR.
+Permissions use the existing catalog names; Prompt 7 adds no permission names.
+Unknown names and catalog entries absent from the current trusted grant both deny.
+Page, record, field, and available-action lists are explicit grants rather than
+claims inferred from a role. A trusted adapter may narrow provisional local policy
+at any scope, and OrkaFin cannot union, infer, or otherwise broaden that result.
+
+`CandidateSummaryRedactor` first requires `candidate.view` and exact record
+visibility. It then intersects each source field with that record's trusted field
+allowlist and returns the established `CandidateSummary` with counts only. Hidden
+field identifiers and values are not present in the output. Notes are excluded by
+default, including for the administrator fixture. The redactor can include a
+bounded excerpt only when both `candidate.notes.view` and the explicit
+`notes_excerpt` field grant are present; it preserves the existing sensitive and
+untrusted labels and never persists the excerpt. No Prompt 7 fixture grants this.
+Activating notes in a real adapter still requires the previously documented review.
 
 Authorization is re-evaluated when context is resolved and again immediately
 before any optional state change. Cached permission decisions cannot outlive the
 adapter response unless an approved TTL and revocation design exists.
+
+The provisional fixture users, exact grants, field matrix, denial codes, and human
+checkpoint are recorded in [`PERMISSION_MODEL.md`](PERMISSION_MODEL.md).
 
 ## Data minimization and storage
 
@@ -100,8 +119,10 @@ The following are prohibited from OrkaFin persistence and routine logs:
   sufficient;
 - Sheet identifiers or URLs unless specifically classified and required.
 
-SQLite files, audit records, and fixture state are local sensitive artifacts and
-must be excluded from version control. Retention and deletion periods are open
+SQLite files, audit records, and mutable adapter fixture state are local sensitive
+artifacts and must be excluded from version control. The reviewed synthetic
+identity fixture configuration is version-controlled and contains no candidate
+values or real personal information. Retention and deletion periods are open
 questions that block a production claim.
 
 ## Retrieval and prompt-injection controls
@@ -205,4 +226,3 @@ production identity, remote hosting, multi-user external access, an audit UI,
 candidate-note processing, durable candidate caching, a new provider data policy,
 new executable actions, or credentialed cross-origin browser access. No local test
 result may be presented as evidence that those production risks are solved.
-
