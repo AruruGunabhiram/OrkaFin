@@ -35,10 +35,11 @@ Direct equivalents are `ruff format .`, `ruff check .`, `mypy src`, `pytest -q`,
 `alembic upgrade head`, `python scripts/validate_knowledge.py`, and
 `uvicorn orkafin.main:app --reload`.
 
-The migration command initializes Alembic's empty migration state only. Prompt 2
-creates no SQLAlchemy models or candidate-related tables. The knowledge command
-only verifies the reserved `knowledge/orka_ats` directory; it does not load or
-interpret knowledge content.
+The migration command creates or upgrades `var/orkafin.db` through Alembic's
+initial OrkaFin-owned schema. `make database-init` is an alias for this local
+initialization. It never creates a candidate table or copies OrkaATS records. The
+knowledge command only verifies the reserved `knowledge/orka_ats` directory; it
+does not load or interpret knowledge content.
 
 ## Run and verify
 

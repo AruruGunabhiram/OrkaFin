@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     service_name: str = "orkafin"
     api_version: str = "v1"
     environment: AppEnvironment = AppEnvironment.LOCAL
-    database_url: str = "sqlite:///./orkafin.db"
+    database_url: str = "sqlite:///./var/orkafin.db"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     allowed_origins: LoopbackOrigins = ("http://127.0.0.1:8000", "http://localhost:8000")
     cors_allow_credentials: bool = False

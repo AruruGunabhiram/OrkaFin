@@ -1,0 +1,86 @@
+# OrkaFin Event, Action, and Audit Persistence
+
+## Scope and ownership
+
+The local SQLite database retains only OrkaFin-owned operational state. It is not
+an OrkaATS data store and contains no `candidates` table, candidate-row mirror,
+candidate notes, attachments, raw browser context, credentials, tokens, API keys,
+or raw model prompts. OrkaATS remains the authority for candidate records,
+visibility, business policy, and writes.
+
+The database URL is `sqlite:///./var/orkafin.db` by default and can be overridden
+only with the validated `ORKAFIN_DATABASE_URL` SQLite setting. Initialize it with
+`make database-init` (or `python scripts/init_database.py`); both run Alembic to
+the current revision.
+
+## Tables
+
+| Table | OrkaFin purpose | Important safeguards |
+|---|---|---|
+| `conversations` | Minimized user conversation envelope | Versioned, workspace-scoped, status constrained |
+| `messages` | User-visible bounded messages | User/assistant roles only; no hidden prompt role |
+| `user_events` | Allowlisted meaningful events | Scalar validated metadata only; no keystrokes |
+| `recommendations` | Rule-derived guidance state | Kind/status constrained and source IDs bounded by domain validation |
+| `recommendation_impressions` | Shown-recommendation measurement | FK to a recommendation; no candidate payload |
+| `recommendation_feedback` | Bounded feedback | FK to a recommendation and constrained feedback type |
+| `action_proposals` | Prepared, unexecuted action intent | Typed parameter JSON, parameter hash, and unique idempotency key |
+| `action_confirmations` | Hash-only confirmation state | Stores only the confirmation-secret hash, never plaintext |
+| `action_executions` | Receipt-backed execution outcome | Unique idempotency key and validated receipt JSON when present |
+| `audit_records` | Security-relevant facts | Append-only API plus SQLite update/delete-blocking triggers |
+
+All timestamp values are supplied by UTC-validated domain objects. Schema-version
+columns preserve the accepted domain contract version on records that are expected
+to evolve. SQLAlchemy models use foreign keys, indexes, enumerated check
+constraints, and SQLite foreign-key enforcement on every application connection.
+
+## Candidate references only
+
+Candidate identifiers are not business records in this database. They may occur
+only as an application/entity reference, with no copied name, stage, note, field,
+or visibility data.
+
+| Location | Candidate-reference fields | Why it is permitted |
+|---|---|---|
+| `user_events` | `entity_app_id`, `entity_type`, `entity_id` | Correlates a meaningful user event to the requested application entity |
+| `action_proposals` | `target_app_id`, `target_entity_type`, `target_entity_id` | Binds a proposal to the adapter-revalidated target |
+| `action_executions` | `target_app_id`, `target_entity_type`, `target_entity_id` | Links a receipt-backed outcome to the target |
+| `audit_records` | `target_app_id`, `target_entity_type`, `target_entity_id` | Records a minimized security-relevant target reference |
+
+No other table contains candidate references. These columns are bounded identifiers
+and do not grant access or replace live OrkaATS permission checks.
+
+## Serialization boundary
+
+Repositories accept strict Prompt 4 domain objects, not HTTP request bodies or
+arbitrary dictionaries. The explicit serializers select only approved fields and
+use Pydantic JSON serialization solely for bounded `BoundedMetadata`, typed action
+parameters, previews, and adapter receipts. This excludes browser claims,
+candidate summaries and notes, raw model prompts, secrets, credentials, tokens,
+and unknown JSON keys before persistence is reached.
+
+## Retention assumptions
+
+No retention duration is approved yet (Q-008 and Q-012). For the local pilot:
+
+- the operator owns the local `var/orkafin.db` file and removes it when resetting
+  synthetic demo data;
+- tests use temporary SQLite files and remove them after each test;
+- audit rows remain append-only for the life of a local database and are deleted
+  only by deleting the entire local pilot database under operator review;
+- no production retention, deletion, backup, or restore claim is made.
+
+Before a non-local deployment, product, privacy, and security owners must approve
+record-specific retention, deletion, backup, restore, access review, and incident
+handling policies.
+
+## Prompt 6 handoff
+
+- Database URL: `sqlite:///./var/orkafin.db` (override: `ORKAFIN_DATABASE_URL`).
+- Initial Alembic revision: `36475e375cb5`.
+- Repository interface: `OrkaFinRepository(session)` with `add_*` methods for
+  validated records, `append_user_event`, `append_audit_record`,
+  `get_conversation`, `update_conversation`, and `list_messages`.
+- Idempotency: `action_proposals.idempotency_key` and
+  `action_executions.idempotency_key` are independent unique, bounded keys. A
+  later execution workflow must resolve/reuse the proposal key before adapter
+  work and reject duplicate execution keys rather than run a second write.

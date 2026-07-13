@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from orkafin.core.settings import Settings
+from orkafin.infrastructure.database.session import Database
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,8 +11,9 @@ class ApplicationDependencies:
     """Dependencies supplied to routes and future application services."""
 
     settings: Settings
+    database: Database
 
 
 def build_dependencies(settings: Settings) -> ApplicationDependencies:
     """Build the dependency container without global mutable state."""
-    return ApplicationDependencies(settings=settings)
+    return ApplicationDependencies(settings=settings, database=Database(settings.database_url))

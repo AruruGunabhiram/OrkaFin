@@ -1,4 +1,4 @@
-.PHONY: install format lint typecheck test migrate knowledge-validate run
+.PHONY: install format lint typecheck test migrate database-init knowledge-validate run
 
 install:
 	python -m pip install -e '.[dev]'
@@ -17,6 +17,8 @@ test:
 
 migrate:
 	alembic upgrade head
+
+database-init: migrate
 
 knowledge-validate:
 	python scripts/validate_knowledge.py

@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from logging.config import fileConfig
-from typing import Any
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+import orkafin.infrastructure.database.models  # noqa: F401
+from orkafin.infrastructure.database.base import Base
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Prompt 2 intentionally defines no persistence models. Prompt 5 supplies metadata.
-target_metadata: Any = None
+# Importing models registers the complete, OrkaFin-owned schema on this metadata.
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
@@ -30,7 +32,7 @@ def run_migrations_online() -> None:
     connectable = engine_from_config(configuration, prefix="sqlalchemy.", poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
 
         with context.begin_transaction():
             context.run_migrations()
