@@ -1,0 +1,24 @@
+fixture_kind: synthetic_mock_orka_ats_events
+events:
+  - event_id: mock-event-recruiter-selected-1042
+    event_type: candidate_selected
+    actor_fixture_id: recruiter
+    candidate_id: CAND-1042
+    metadata: {source: fixture, meaningful: true}
+    occurred_at: '2026-07-13T19:57:00Z'
+  - event_id: mock-event-recruiter-page-viewed
+    event_type: page_viewed
+    actor_fixture_id: recruiter
+    metadata: {page_kind: candidate_profile}
+    occurred_at: '2026-07-13T19:56:00Z'
+  - event_id: mock-event-limited-dashboard
+    event_type: page_viewed
+    actor_fixture_id: limited_viewer
+    metadata: {page_kind: candidate_dashboard}
+    occurred_at: '2026-07-13T19:55:00Z'
+  - event_id: mock-event-admin-selected-1043
+    event_type: candidate_selected
+    actor_fixture_id: admin
+    candidate_id: CAND-1043
+    metadata: {source: fixture, meaningful: true}
+    occurred_at: '2026-07-13T19:54:00Z'

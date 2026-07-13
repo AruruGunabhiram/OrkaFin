@@ -1,0 +1,56 @@
+fixture_kind: synthetic_mock_orka_ats_users
+users:
+  - fixture_id: recruiter
+    user_id: mock-user-recruiter
+    display_name: Synthetic Recruiter
+    email: recruiter.mock@example.invalid
+    role_id: recruiter
+    role_display_name: Recruiter
+    workspace_id: workspace_recruiting_alpha
+    allowed_page_ids:
+      - candidate_creation_form
+      - candidate_dashboard
+      - candidate_list
+      - candidate_profile
+      - recruiter_filters
+      - recruitment_pipeline
+    permissions: [candidate.create, candidate.view]
+    available_features: [candidate_search, candidate_summary, recent_recruiting_events]
+    available_action_ids: []
+    record_grants:
+      CAND-1042: [display_name, email, recruiter, recruitment_stage, resume_link, start_date]
+  - fixture_id: limited_viewer
+    user_id: mock-user-limited-viewer
+    display_name: Synthetic Limited Viewer
+    email: limited.viewer.mock@example.invalid
+    role_id: limited_viewer
+    role_display_name: Limited viewer
+    workspace_id: workspace_recruiting_alpha
+    allowed_page_ids: [candidate_dashboard, candidate_list, candidate_profile, recruitment_pipeline]
+    permissions: [candidate.view]
+    available_features: [candidate_search, candidate_summary, recent_recruiting_events]
+    available_action_ids: []
+    record_grants:
+      CAND-1042: [display_name, recruiter, recruitment_stage]
+  - fixture_id: admin
+    user_id: mock-user-admin
+    display_name: Synthetic Administrator
+    email: admin.mock@example.invalid
+    role_id: administrator
+    role_display_name: Administrator
+    workspace_id: workspace_recruiting_alpha
+    allowed_page_ids:
+      - candidate_creation_form
+      - candidate_dashboard
+      - candidate_list
+      - candidate_profile
+      - recruiter_filters
+      - recruitment_pipeline
+    permissions: [candidate.create, candidate.update_start_date, candidate.view]
+    available_features: [candidate_search, candidate_summary, recent_recruiting_events]
+    available_action_ids: [candidate.update_start_date]
+    record_grants:
+      CAND-1042: [created_at, display_name, email, recruiter, recruitment_stage, resume_link, start_date, updated_at]
+      CAND-1043: [created_at, display_name, email, recruiter, recruitment_stage, resume_link, start_date, updated_at]
+  - fixture_id: unverified
+    description: Subject exists only to prove no candidate identity or authorization is returned.

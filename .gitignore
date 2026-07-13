@@ -28,3 +28,4 @@ htmlcov/
 *.sqlite
 *.sqlite3
 orkafin.db
+var/mock_orka_ats_state.json

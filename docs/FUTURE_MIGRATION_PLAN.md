@@ -73,6 +73,22 @@ limits; audit policy; incident rollback/kill switch.
 **Rollback:** disable the live adapter by configuration and return to mock/read-only
 mode without changing domain/application contracts.
 
+Stage 1 must proceed in three separately reviewed increments:
+
+1. Keep `AppsScriptOrkaATSAdapter` on mocked HTTP transport and synthetic payloads
+   while both sides implement wire `v1` / adapter contract `1.0.0` fixtures.
+2. If connectivity evidence is needed, use a short-lived controlled HTTPS tunnel
+   with synthetic data only. Record topology, operator, expiry, exact allowlists,
+   and teardown. A tunnel is not a hosting decision or production auth.
+3. Enable read-only candidate traffic only on a reviewed hosted endpoint after
+   service and end-user authentication, request integrity, replay prevention, key
+   rotation, privacy, audit, monitoring, rollback, and Apps Script deployment-mode
+   tests pass.
+
+Apps Script server-side `localhost` never means a developer laptop. Browser access
+to loopback remains a separate CORS/mixed-content-constrained untrusted-client
+path; it cannot establish production identity.
+
 ### Stage 2 — Remote single-service pilot
 
 Deploy the same modular service remotely only when more than one controlled user
@@ -146,6 +162,39 @@ the user identity cannot be obtained. Rollout begins deny-by-default and read-on
 Mock identity selection remains available only in an explicit non-production mode
 that cannot coexist accidentally with live configuration.
 
+## Prompt 10 adapter-shell handoff
+
+The HTTP shell preserves `OrkaApplicationAdapter`; core and application services
+do not know whether the injected implementation is mock or HTTP. Its current
+configuration is intentionally small:
+
+| Field | Default/bounds | Meaning |
+|---|---|---|
+| `enabled` | `false` | Construction fails safely while disabled. |
+| `endpoint_url` | none | Required when enabled; absolute HTTPS only, with no credentials, query, or fragment. |
+| `timeout_seconds` | `5.0`; greater than 0 and at most 10 | One transport deadline; the shell performs no retries. |
+| `max_response_bytes` | `1,000,000`; 1,024–2,000,000 | Reject oversized responses before parsing. |
+
+The transport is an injected `AsyncHttpTransport`; no concrete network client is
+selected. Request bodies and responses use wire schema `v1`, adapter contract
+`1.0.0`, exact general capability operation names, and canonical request-ID
+propagation.
+
+Known blockers before a real transport can carry candidate data are production
+service authentication, user assertion verification, request signing or token
+exchange, issuer/audience/expiry checks, replay/nonce storage, key rotation,
+secret management, rate/abuse controls, deployment-mode identity evidence,
+reconciliation, and operational review. There is deliberately no token or secret
+configuration field yet; adding one without an approved protocol would fabricate
+security.
+
+Mock transport fixtures live in `tests/unit/test_apps_script_adapter.py` and cover
+serialization, response parsing, version conflict, timeout, malformed response,
+permission denial, invalid action receipt, disabled configuration, and secret-free
+adapter logs. Prompt 11 should consume the unchanged general adapter interface and
+continue using the mock adapter; it must not enable this shell or infer trusted
+browser identity.
+
 ## Provider migration rules
 
 Adding a model requires an explicit configuration flag, provider data-use/retention
@@ -188,4 +237,3 @@ This plan itself must be revised when production requirements, regulation/data
 classification, Orka application interfaces, availability goals, provider terms,
 or measured pilot behavior invalidate an assumption. Technology availability by
 itself is not a migration trigger.
-

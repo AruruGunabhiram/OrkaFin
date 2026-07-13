@@ -1,147 +1,292 @@
-# OrkaATS Mapping to the General Adapter Contract
+# OrkaATS Apps Script Adapter Contract
 
-**Status:** Prompt 8 semantic mapping only  
-**General contract:** `OrkaApplicationAdapter` `1.0.0`  
-**Implementation:** Deferred to Prompt 9
+**Status:** Prompt 10 transport boundary; not a completed live integration
 
-## Scope
+**Wire schema:** `v1`
 
-OrkaATS implements the general Orka application adapter while retaining authority
-over candidates, workspace membership, record and field visibility, recruiting
-business rules, action availability, validation, and writes. This document maps
-OrkaATS meanings to the application-neutral types. It does not define a real or
-mock implementation, fixtures, endpoints, transport, or an executable action.
+**General adapter contract:** `1.0.0`
 
-The general protocol contains no candidate-only request or response field.
-Candidate-specific conversion remains inside the OrkaATS adapter/application
-mapping and does not leak into registry or core orchestration.
+**Owning application:** `orka_ats`
 
-## Identity and context mapping
+## Scope and authority
 
-| General contract value | OrkaATS meaning |
-|---|---|
-| `app_id` | Stable value `orka_ats`. |
-| `UserIdentity` | OrkaATS-verified current user. A role is a label and never grants candidate access by itself. |
-| `WorkspaceRef` | Verified recruiting workspace/project scope. Browser-provided workspace IDs remain hints. |
-| `page_id` | Verified current OrkaATS page ID. Page access is returned separately in trusted authorization facts. |
-| `SelectedEntityRef` | A selected candidate uses `entity_type="candidate"` and an OrkaATS-owned candidate ID. The reference alone grants no visibility. |
-| `ResolvedApplicationContext` | Request-scoped verified identity, page, workspace, and optional candidate selection. |
+This contract maps the existing `OrkaApplicationAdapter` interface onto a future
+OrkaATS Apps Script HTTPS boundary. OrkaATS remains authoritative for identity,
+workspace membership, candidate visibility, field visibility, action availability,
+business validation, and writes. OrkaFin consumes only typed, filtered responses.
 
-`resolve_current_user` ignores claimed browser email, user ID, roles, permissions,
-and actions. An unknown or unverifiable subject produces a claim-free unverified
-identity or an explicit unauthorized failure. Sensitive methods require a verified
-identity.
+The public contract contains application-level entity references, fields,
+permissions, actions, and receipts. It contains no spreadsheet IDs, ranges, tab
+names, cell coordinates, query handles, or direct storage operations. Any mapping
+from OrkaATS application semantics to its operational store remains private to
+OrkaATS.
 
-`resolve_context` treats the selected candidate and page as hints. OrkaATS verifies
-workspace membership and returns a candidate reference only when it can safely
-bind the selection. This still does not imply record visibility; explicit
-authorization facts remain required.
+`AppsScriptOrkaATSAdapter` is only a disabled-by-default HTTP client shell with an
+injected transport. It has no production authentication implementation, no default
+URL, no embedded secret, and no network client registration in the application
+composition root. Its tests prove serialization and safe failure behavior against
+mocked HTTP responses only.
 
-## Permission and selected-candidate semantics
+## HTTP envelopes
 
-`get_user_permissions` returns `TrustedAuthorizationFacts` with source
-`application_adapter`. For OrkaATS these facts may include:
+Every request is one JSON object:
 
-- explicit app access;
-- allowed page IDs;
-- namespaced permissions such as `candidate.view`;
-- exact candidate record grants and their visible field IDs; and
-- action IDs currently available to the user and context.
+```json
+{
+  "schema_version": "v1",
+  "adapter_contract_version": "1.0.0",
+  "operation": "get_app_metadata",
+  "request_id": "00000000-0000-4000-8000-000000000110",
+  "app_id": "orka_ats",
+  "payload": {
+    "schema_version": "v1",
+    "adapter_contract_version": "1.0.0",
+    "request_id": "00000000-0000-4000-8000-000000000110",
+    "app_id": "orka_ats"
+  }
+}
+```
 
-Omitted facts deny. Record visibility is independent of role. A candidate that is
-missing, private, archived, outside the workspace, or otherwise inaccessible may
-be returned as the same safe not-found/forbidden outcome; responses must not leak
-existence through details.
+The payload is the exact typed general-contract request for `operation`. The outer
+and inner versions, request ID, and app ID must agree. The HTTP client also sends
+the request ID, wire version, and adapter contract version in headers for
+correlation and early routing; headers do not replace envelope validation.
 
-`get_selected_entity_summary` accepts a generic selected-entity request. The
-OrkaATS implementation verifies `entity_type="candidate"`, identity, workspace,
-record access, field access, and relevant permission before constructing a
-response. It returns:
+A successful response is:
 
-- the generic candidate reference;
-- an optional safe display label;
-- only allowed `VisibleEntityField` values with sensitivity labels and closed
-  typed values;
-- bounded visible/redacted counts; and
-- request and adapter-response bindings.
+```json
+{
+  "schema_version": "v1",
+  "adapter_contract_version": "1.0.0",
+  "operation": "get_app_metadata",
+  "request_id": "00000000-0000-4000-8000-000000000110",
+  "app_id": "orka_ats",
+  "adapter_response_id": "apps-script-response-001",
+  "responded_at": "2026-07-13T20:00:00Z",
+  "outcome": "success",
+  "payload": {
+    "schema_version": "v1",
+    "adapter_contract_version": "1.0.0",
+    "request_id": "00000000-0000-4000-8000-000000000110",
+    "app_id": "orka_ats",
+    "adapter_response_id": "apps-script-response-001",
+    "responded_at": "2026-07-13T20:00:00Z",
+    "app_metadata": {
+      "schema_version": "v1",
+      "app_id": "orka_ats",
+      "display_name": "OrkaATS",
+      "description": "Permission-aware applicant tracking application.",
+      "app_version": "1.0.0",
+      "adapter_contract_version": "1.0.0",
+      "status": "active"
+    }
+  }
+}
+```
 
-Hidden field IDs and values are absent. Candidate notes are omitted by default.
-Any later notes capability must retain the established sensitive,
-`untrusted_content`, never-persisted handling and requires a separate approved
-permission path. The Prompt 9 implementation may map the generic summary into the
-existing request-scoped `CandidateSummary` domain view inside the OrkaATS-specific
-boundary; it must not change the general protocol to carry candidate-only fields.
+`payload` must validate as the operation's exact response model. Envelope and
+payload IDs and timestamps must match. Unknown fields, malformed JSON, wrong
+operation, wrong bindings, and invalid nested receipts fail closed.
 
-`search_allowed_records` searches only candidate records already allowed for the
-verified identity/workspace. It enforces the general maximum result limit and
-returns minimal labels plus explicitly requested, visible fields. It cannot return
-full candidate objects, hidden fields, unrestricted exports, or opaque arbitrary
-payloads.
+A failure response has the same outer correlation fields, `outcome="failure"`,
+and a typed `AdapterFailure` in `failure`. The failure's version, request ID, app
+ID, and response ID must match the outer envelope. Response bodies, endpoint URLs,
+headers, identity assertions, and exception details must never be logged.
 
-## Page, feature, event, and action availability
+## Operation mapping
 
-`get_page_metadata` maps the verified OrkaATS page to bounded title, purpose,
-version, feature IDs, and an internal safe reference. Product guidance and action
-definitions remain in controlled catalogs; adapter metadata does not replace
-those sources.
+The HTTP operation name is exactly the existing capability value. Core services
+continue to depend only on `OrkaApplicationAdapter`.
 
-`get_available_features` returns only feature IDs OrkaATS considers available in
-the current verified context. Catalog membership alone does not make a feature
-available.
+| HTTP `operation` | Typed request | Typed response | OrkaATS responsibility |
+|---|---|---|---|
+| `get_app_metadata` | `GetAppMetadataRequest` | `GetAppMetadataResponse` | Return bounded application metadata. |
+| `resolve_current_user` | `ResolveCurrentUserRequest` | `ResolveCurrentUserResponse` | Resolve a user only from authenticated server-side evidence. |
+| `resolve_context` | `ResolveContextRequest` | `ResolveContextResponse` | Verify page, workspace, and optional candidate selection. |
+| `get_user_permissions` | `GetUserPermissionsRequest` | `GetUserPermissionsResponse` | Return current explicit authorization facts. |
+| `get_page_metadata` | `GetPageMetadataRequest` | `GetPageMetadataResponse` | Return bounded metadata for the verified page. |
+| `get_selected_entity_summary` | `GetSelectedEntitySummaryRequest` | `GetSelectedEntitySummaryResponse` | Return only visible candidate fields. |
+| `get_available_features` | `GetAvailableFeaturesRequest` | `GetAvailableFeaturesResponse` | Return verified feature availability. |
+| `get_available_actions` | `GetAvailableActionsRequest` | `GetAvailableActionsResponse` | Return action IDs available now; this grants no execution by itself. |
+| `get_recent_user_events` | `GetRecentUserEventsRequest` | `GetRecentUserEventsResponse` | Return bounded, privacy-minimized meaningful events. |
+| `search_allowed_records` | `SearchAllowedRecordsRequest` | `SearchAllowedRecordsResponse` | Search only records and fields already visible to the user. |
+| `execute_approved_action` | `ExecuteApprovedActionRequest` | `ExecuteApprovedActionResponse` | Revalidate and execute one fully bound action. |
+| `log_feedback` | `LogFeedbackRequest` | `LogFeedbackResponse` | Accept a non-authoritative, replay-protected feedback signal. |
 
-`get_recent_user_events` returns a bounded list of meaningful OrkaATS events. It
-must not return raw navigation streams, keystrokes, unrestricted candidate
-content, or sensitive notes. Entity references are included only when permitted.
+The remote deployment advertises only capabilities it implements. Unadvertised
+operations return `unsupported_capability`; they do not return empty success.
 
-`get_available_actions` returns current OrkaATS action availability as IDs. An ID
-is necessary but not sufficient for execution. OrkaFin also requires an active
-matching `ActionDefinition`, explicit permission, candidate visibility, preview,
-confirmation, and execution-time revalidation.
+## Trusted identity assertions
 
-## Approved action semantics
+Browser-provided identity, email, role, permissions, workspace, selected record,
+and available actions are untrusted hints. An Apps Script page running in a user's
+browser does not become an identity authority merely because it is served by
+OrkaATS.
 
-Prompt 8 defines no enabled OrkaATS action. If a later prompt enables one,
-`execute_approved_action` is the only adapter operation that may mutate candidate
-business state. The request must include:
+Before `ResolveCurrentUserResponse` may use `adapter_verified`, the production
+design must let OrkaFin verify all of the following from authenticated evidence:
 
-- the active versioned action definition;
-- current OrkaATS-verified identity and context;
-- a confirmed proposal bound to the candidate and exact parameters;
-- accepted one-time confirmation state;
-- the idempotency key; and
-- the execution request ID.
+- the OrkaATS deployment/service issuer and intended OrkaFin audience;
+- the calling deployment and owning application;
+- a stable subject, and how the Apps Script execution mode obtained it;
+- issuance, expiry, nonce, and request/deployment binding;
+- integrity/authenticity through an approved signing or token-exchange protocol;
+- replay status and key/token rotation state; and
+- current workspace membership and account status from OrkaATS authority.
 
-OrkaATS revalidates candidate visibility, action permission and availability,
-current candidate state, action/version, parameters, and business rules. A
-successful response requires an `AdapterExecutionReceipt` matching `orka_ats`,
-the action, candidate target, execution request, and idempotency key, with an
-OrkaATS transaction/reference ID and UTC timestamps.
+Apps Script active-user behavior varies with deployment and execution identity.
+It must be tested in the chosen deployment; an absent user identity denies rather
+than falling back to browser email. The current shell verifies none of these
+production properties and therefore is not approved for real candidate data.
 
-A conflict, validation failure, denial, unavailable dependency, timeout, malformed
-receipt, or internal failure remains explicit. In particular, a timeout after an
-execution attempt is an ambiguous outcome until reconciled; OrkaFin must not claim
-success or claim that no change occurred without authoritative evidence.
+## Permission behavior
 
-`log_feedback` is optional and non-authoritative. It may deliver feedback about an
-OrkaFin recommendation but cannot update a candidate, grant permission, execute an
-action, or act as an alternate candidate-write path.
+Permissions are evaluated and filtered inside OrkaATS before a response is built:
 
-## Prompt 9 implementation obligations
+- app and page access are explicit and omission denies;
+- role labels do not imply a record, field, or action grant;
+- record visibility is independently checked for the verified user and workspace;
+- field values are returned only when that exact field is visible; hidden values
+  and hidden field names are absent;
+- search operates only over already-allowed records and fields;
+- an action ID indicates availability only, not permission to execute; and
+- execution revalidates identity, record, field/action permission, action version,
+  current state, exact parameters, idempotency, and business rules.
 
-The mock OrkaATS adapter should implement this mapping with synthetic data only
-and pass `tests.contracts.adapter_contract.assert_adapter_contract`. In addition,
-its tests must prove:
+Missing, private, out-of-workspace, and inaccessible records may deliberately use
+the same safe failure to avoid existence disclosure. OrkaFin never widens a grant
+and never uses browser claims, cached candidate data, or model output as fallback
+authority.
 
-- forged browser identity, role, permission, record, field, and action claims do
-  not broaden access;
-- private or missing candidates do not leak;
-- selected summaries and search results are field-filtered inside the adapter;
-- candidate notes cannot become instructions and remain omitted by default;
-- every advertised optional capability enforces its declared limits;
-- deterministic simulated failures map to the typed adapter errors; and
-- unsupported or disabled action execution returns an explicit failure, never a
-  fabricated receipt.
+## Errors and retries
 
-Prompt 9 may add OrkaATS-only packages and synthetic fixtures. It must preserve the
-general method names/signatures, error classes, registry mechanism, and reusable
-contract-suite entry point established here.
+| Adapter code | Typical HTTP status | Retry rule |
+|---|---:|---|
+| `unauthorized` | 401 | Do not retry without new authenticated evidence. |
+| `forbidden` | 403 | Do not retry unchanged. |
+| `not_found` | 404 | Do not retry unchanged. |
+| `validation_failed` | 400/422 | Correct the typed request; do not retry unchanged. |
+| `conflict` | 409 | Re-resolve authoritative context/state before a new attempt. |
+| `timeout` | 408/504 | Read calls may be retried only under a bounded caller policy. Writes require idempotency lookup/reconciliation first. |
+| `unavailable` | 429/502/503 | Apply bounded backoff only where the operation is safe to retry. |
+| `internal_failure` | 500/other invalid response | Fail closed; investigate by safe correlation IDs. |
+| `unsupported_capability` | 400/501 | Do not retry; negotiate/deploy a supported contract. |
+
+A valid typed failure takes precedence over coarse HTTP mapping. Malformed 2xx
+responses become `internal_failure`. Transport timeout becomes `timeout`; it is
+not success. The shell performs no automatic retries, especially for actions.
+
+## Request IDs, idempotency, and action receipts
+
+The same canonical UUID request ID is propagated in the HTTP header, outer
+envelope, typed payload, response, failure, receipt, OrkaFin audit, and safe logs.
+OrkaATS creates a unique `adapter_response_id` for each authoritative response.
+
+`execute_approved_action` and `log_feedback` also propagate the typed idempotency
+key in their payload. OrkaATS stores/checks action idempotency under its own
+authority and returns the prior authoritative outcome for a valid replay. It must
+not execute twice because the HTTP client retried.
+
+Action success exists only when `ExecuteApprovedActionResponse.receipt` is valid
+and matches the request's app, action ID/version, target, request ID, idempotency
+key, and configured adapter identity. The receipt includes an OrkaATS-owned
+transaction/reference ID, explicit outcome, and UTC execution/receipt times. A
+failed receipt includes a safe failure code. A timeout after dispatch is ambiguous
+until reconciled; OrkaFin must not state either success or “no change” without an
+authoritative receipt.
+
+## Limits and compatibility
+
+The client configuration defaults to a 5-second deadline, rejects values above
+10 seconds, and accepts at most 1,000,000 response bytes (configurable only from
+1,024 through 2,000,000 bytes). Typed domain models separately bound lists and
+text. A production review may choose tighter per-operation deadlines; increasing
+these hard limits requires explicit resource/abuse review.
+
+Wire schema, adapter contract, adapter implementation, and individual capability
+versions evolve independently. Requests declare `v1` and `1.0.0`; the receiver
+must reject an unsupported version explicitly and must never silently coerce or
+downgrade. Additive capability support is advertised in adapter metadata. A
+breaking payload or semantic change requires a new compatible deployment path and
+contract tests covering both sides during migration.
+
+## Apps Script `doPost` routing pseudocode
+
+This is routing pseudocode, not production Apps Script code. It deliberately omits
+storage access, authentication implementation, and application business logic.
+
+```javascript
+function doPost(event) {
+  const authenticatedCaller = authenticateAndVerifyReplay(event); // REQUIRED, TBD
+  const envelope = parseBoundedJson(event.postData.contents);
+  requireSupportedVersions(envelope.schema_version,
+                           envelope.adapter_contract_version);
+  requireRequestBindings(envelope, authenticatedCaller);
+
+  const routes = {
+    get_app_metadata: handleGetAppMetadata,
+    resolve_current_user: handleResolveCurrentUser,
+    resolve_context: handleResolveContext,
+    get_user_permissions: handleGetUserPermissions,
+    get_page_metadata: handleGetPageMetadata,
+    get_selected_entity_summary: handleSelectedEntitySummary,
+    get_available_features: handleAvailableFeatures,
+    get_available_actions: handleAvailableActions,
+    get_recent_user_events: handleRecentEvents,
+    search_allowed_records: handleAllowedSearch,
+    execute_approved_action: handleApprovedAction,
+    log_feedback: handleFeedback
+  };
+
+  const handler = routes[envelope.operation];
+  if (!handler) return typedFailure("unsupported_capability", envelope);
+
+  try {
+    const typedRequest = validateOperationPayload(envelope.operation, envelope.payload);
+    const filteredResult = handler(typedRequest, authenticatedCaller);
+    return typedSuccess(envelope, filteredResult);
+  } catch (safeError) {
+    return mapToTypedFailure(safeError, envelope);
+  }
+}
+```
+
+## Four local integration modes
+
+| Mode | Connectivity | Trust/data rule | Status |
+|---|---|---|---|
+| Mock adapter | OrkaFin calls `MockOrkaATSAdapter` in process. | Synthetic fixtures and fixture identity only. | Default and fully testable offline. |
+| Browser-local demo | A controlled browser page calls loopback OrkaFin directly. | CORS uses exact loopback origins; mixed-content rules may block an HTTPS page calling HTTP localhost; every browser identity/context claim remains untrusted. Use the mock authority. | Development convenience, not Apps Script server integration. |
+| Controlled HTTPS tunnel | A temporary tunnel exposes a narrowly bound local endpoint, or exercises the Apps Script endpoint path, for explicit connectivity testing. | Short-lived URL, synthetic data, exact allowlists, operator supervision, no production identity claim, revoke immediately after test. | Temporary test technique, never production architecture. |
+| Later hosted API | OrkaFin runs at a reviewed HTTPS deployment reachable by the intended browser/server path. | Requires real service/user authentication, signing or token exchange, replay prevention, key rotation, secret management, audit, rate limits, monitoring, and deployment review. | Future architecture decision; not implemented. |
+
+Apps Script server-side code runs on Google infrastructure. Its `localhost` is not
+the developer laptop, so `UrlFetchApp` cannot be assumed to reach a developer's
+loopback FastAPI process. A browser on the developer machine may reach loopback,
+but that is a distinct untrusted-client path subject to CORS and browser
+mixed-content policy.
+
+## Gates before any live candidate data
+
+All of these are mandatory before replacing synthetic data:
+
+1. Security and platform approval of the exact topology and Apps Script deployment
+   identity behavior.
+2. Mutual service authentication or equivalent approved request signing/token
+   exchange, with issuer/audience/expiry verification and key rotation.
+3. Replay protection bound to request ID, nonce, deployment, operation, and expiry;
+   durable idempotency/reconciliation for writes.
+4. TLS-only endpoints, secret management, endpoint allowlisting, bounded request
+   and response sizes, rate limits, abuse controls, and safe timeouts.
+5. OrkaATS-owned record/field/action authorization tests using synthetic or
+   isolated test workspaces before real data.
+6. Exact CORS and content-security policy for any browser path; no wildcard origin
+   and no browser-held server credential.
+7. Redacted structured logging, protected audit trail, retention/deletion policy,
+   incident response, kill switch, rollback to mock/read-only mode, and monitoring.
+8. Privacy/data-flow and deployment review confirming no direct operational-store
+   access or durable candidate replica in OrkaFin.
+
+Until those gates pass, the safe handoff is the mock adapter plus the mocked HTTP
+fixtures in `tests/unit/test_apps_script_adapter.py`. Passing these tests does not
+mean live Apps Script integration, authentication, or candidate traffic works.

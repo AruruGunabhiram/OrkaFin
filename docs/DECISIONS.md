@@ -55,6 +55,8 @@ The architecture decision records are:
 | D-023 | `ClientContextHint` and `ResolvedPageContext` are incompatible types with fixed trust labels; verified facts are request/adapter-response scoped. | Prevents client claims from being reinterpreted as adapter authorization and records the non-durable trust lifetime. |
 | D-024 | `CandidateSummary` is a request-scoped typed OrkaATS view with visible fields and safe redaction counts, not a persistence model. Notes are absent by default; any future excerpt is permanently labeled sensitive and untrusted and is never persisted. | Implements D-006, D-008, and D-015 without deciding the unresolved field policy in Q-002. |
 | D-025 | Assistant output uses closed response kinds with mechanical grounding rules, and successful action results require a matching owning-adapter receipt. | Makes unavailable/refusal behavior and the no-fabricated-success rule structural. |
+| D-026 | The future OrkaATS Apps Script boundary uses wire schema `v1` over the unchanged general adapter contract `1.0.0`, through an injected transport. The shell is disabled by default, requires an explicit HTTPS endpoint and bounded timeout/response size, and contains no network client, URL, secret, or production authentication. | Makes HTTP replaceable and locally mockable without coupling core services or falsely claiming a secure live integration. |
+| D-027 | Mock, browser-local, controlled HTTPS tunnel, and later hosted API are distinct integration modes. Browser claims remain untrusted; Apps Script server-side code cannot reach a developer laptop through `localhost`; a tunnel is synthetic-data-only temporary testing, not production architecture. | Prevents local connectivity techniques from being mistaken for identity proof, deployment, or an approved live data path. |
 
 The Prompt 4 field shapes, module paths, ID patterns, and handling table are in
 [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md). These entries clarify existing boundaries;
@@ -83,7 +85,7 @@ validated before the prompt noted.
 | A-001 | Synthetic OrkaATS data with no real personal information is adequate for the local demo. | Prompt 9 fixture review |
 | A-002 | The approved knowledge set is small enough for in-memory deterministic filtering and ranking. | Prompt 14 retrieval evaluation |
 | A-003 | A single process and SQLite support pilot concurrency and test volume. | End-to-end measurements; revisit before remote/multi-process use |
-| A-004 | OrkaATS can eventually expose identity/context/permission and action capabilities through a controlled adapter. | Prompt 10 contract review with OrkaATS owners |
+| A-004 | OrkaATS can eventually expose identity/context/permission and action capabilities through a controlled adapter. The Prompt 10 wire boundary exists, but OrkaATS owner/platform validation remains pending. | Before any live adapter deployment |
 | A-005 | Request-scoped redacted candidate summaries are enough for mandatory guidance. | Prompt 11 context-flow review |
 | A-006 | Local users can be represented by fixture identities selected through trusted server configuration. | Prompt 7 security review |
 | A-007 | Version-controlled help/feature/page catalogs have named product owners and review. | Prompt 6 knowledge approval |
@@ -110,6 +112,8 @@ clearly labeled provisional fixture only when its checkpoint requires review.
 | Q-011 | What exact development origins and ports are allowed by CORS? | Prompt 3 configuration review | Use configurable loopback defaults only; blocks broad browser exposure |
 | Q-012 | What are local retention/reset expectations for mock adapter state and audit fixtures? | Engineering/security; Prompts 5 and 9 | Blocks reproducible fixture cleanup details |
 | Q-013 | What are the first approved page IDs/features and ten production-quality questions? | OrkaATS product owner; Prompt 6 | Current scope questions are representative, not a content approval |
+| Q-014 | Which exact service-authentication and end-user assertion protocol, issuer/audience rules, replay store, nonce lifetime, and key-rotation process will secure the hosted adapter? | Security + platform owner; before live adapter | Blocks adding auth configuration or using real candidate data |
+| Q-015 | Which reviewed async HTTP client/transport owns TLS policy, connection limits, deployment observability, and secret injection for the hosted environment? | Platform owner; hosted deployment ADR | Blocks selecting a concrete live transport; mocked transport remains allowed |
 
 ## Decisions deliberately deferred
 
