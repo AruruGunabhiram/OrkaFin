@@ -5,10 +5,24 @@ pilot application, OrkaATS. It is not a generic chatbot and it is not the system
 of record for candidates. OrkaATS owns candidate data, candidate permissions,
 business validation, and every candidate write.
 
-Prompt 1 is documentation-only and is **frozen for human review**. There is no
-FastAPI application, database schema, widget, or model integration in this
-increment. Do not begin Prompt 2 until a reviewer records approval in
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
+Prompt 2 establishes the typed local service scaffold only. It includes an
+application factory and a versioned `GET /health` endpoint, but no database
+schema, business endpoint, knowledge loader, adapter implementation, widget, or
+model-provider integration.
+
+## Local quick start
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+make lint typecheck test
+make run
+```
+
+Then request `http://127.0.0.1:8000/health`. See
+[local setup](docs/LOCAL_SETUP.md) for all quality, migration, and knowledge
+validation commands.
 
 ## V1 decisions at a glance
 
@@ -49,13 +63,12 @@ longer-term Orka OS direction. The
 controls build sequencing. If broad future context conflicts with the approved
 local V1 documents, the narrower local V1 decision and its ADR govern V1.
 
-## Planned repository boundary
+## Repository boundary
 
-Prompt 2 may create the import package `orkafin` in a `src` layout, with modules
-for API, core configuration, domain contracts, application services, adapters,
-infrastructure, knowledge, providers, and the framework-free web widget. These are
-modules in one deployable service, not microservices. The exact scaffold remains
-subject to Prompt 1 human approval.
+The `orkafin` import package uses a `src` layout with modules for API, core
+configuration, domain contracts, application services, adapters, infrastructure,
+knowledge, providers, and the framework-free web widget. These are modules in one
+deployable service, not microservices.
 
 The planned database may contain OrkaFin-owned conversations, messages, events,
 recommendations, feedback, action state, execution receipts, and audit records.

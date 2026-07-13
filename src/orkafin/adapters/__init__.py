@@ -1,0 +1,1 @@
+"""Owning-application adapter boundary."""
