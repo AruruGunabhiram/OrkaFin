@@ -95,6 +95,7 @@ class RetrievedSource(DomainModel):
     relevance_score: float = Field(ge=0.0, le=1.0)
     relevance_reason: ShortText
     required_permissions: tuple[Permission, ...] = Field(default=(), max_length=50)
+    uncertainty_reason: ShortText | None = None
     retrieved_at: UtcDatetime
 
     @model_validator(mode="after")
@@ -113,4 +114,9 @@ class RetrievedSource(DomainModel):
             and self.source_owner is not DataOwner.PRODUCT_DOCUMENTATION
         ):
             raise ValueError("catalog and help sources must be owned by product documentation")
+        if (
+            self.verification_status is VerificationStatus.VERIFIED
+            and self.uncertainty_reason is not None
+        ):
+            raise ValueError("verified sources must not carry uncertainty metadata")
         return self

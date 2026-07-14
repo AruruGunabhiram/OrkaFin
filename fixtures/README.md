@@ -14,3 +14,10 @@ permission evaluator. A role label alone grants nothing.
 
 The fixture policy is provisional and requires the Prompt 7 human review recorded
 in `docs/PERMISSION_MODEL.md` before Prompt 8 begins.
+## Retrieval evaluation
+
+`retrieval_evaluation.yaml` is the controlled, offline fixture set for Prompt 12.
+It contains normalized user questions, a safe page context, trusted permission IDs,
+the expected top source ID (or no source), and the expected deterministic intent.
+Run it with `python -m orkafin.knowledge.evaluate`; it reports top-source accuracy
+only for these fixtures and makes no broader retrieval-quality claim.

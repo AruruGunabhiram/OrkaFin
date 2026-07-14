@@ -48,6 +48,85 @@ Entries and index maps are deterministically ordered by their stable ID. Retriev
 in Prompt 12 must use this index; it must return unavailable information rather
 than inventing catalog content.
 
+## Deterministic retrieval and source references
+
+Prompt 12 adds `DeterministicRetrievalService` in
+`orkafin.application.retrieval`. Its `RetrievalRequest` accepts a canonical
+lowercase tokenized question, a `ResolvedPageContext`, trusted permissions that
+must be a subset of that context's verified permissions, an optional selected
+entity *type* (never its ID or content), and a bounded result limit. The service
+does not read candidate summaries or notes.
+
+It examines only page catalog items, feature catalog items, and help articles for
+the resolved application. Before matching, it excludes every non-active record
+(except when the explicit `include_historical_context` flag permits deprecated
+records) and every item whose required permissions are not all in the trusted
+grant set. Thus documentation cannot grant access, and browser-provided claims
+cannot widen retrieval access.
+
+Matching and ordering are fixed and inspectable:
+
+1. Canonical IDs, titles, and aliases that occur as complete query phrases get the
+   highest tier.
+2. Exact linked page IDs, feature IDs, and help tags get the next tier; a source
+   linked to the resolved page receives a context boost.
+3. Remaining meaningful token overlap across controlled metadata and help content
+   receives a small bounded score. A single weak token in a multi-token question
+   cannot produce a result.
+4. Intent-specific boosts prefer help for step-by-step requests and page catalog
+   entries for explain-this-page requests. Ties are broken by source type then
+   stable source ID.
+
+The current integer weights are deliberately code-visible: exact ID/title is 100
+plus 15 per word in its longest match; exact alias is 90 plus the same precision
+bonus; a linked query page/feature is 55; a multi-word help tag is 35; direct and
+related page context are 40 and 20; each meaningful token overlap is 10 (capped
+at 30); and intent boosts are 8–16. The returned `relevance_score` is the raw
+score divided by 300 and capped at 1.0. Weights are not a probability or an
+unmeasured quality claim.
+
+The result returns the existing typed `RetrievedSource`: stable source ID and
+type, app ID, content version, revision, title, bounded safe excerpt,
+`catalog://` or `knowledge://` reference, verification status, score, reason,
+and the permission requirements that were checked. Provisional or needs-review
+items include `uncertainty_reason`; in particular, step-by-step help without
+verified instruction steps says that no verified steps are available. Controlled
+source text remains data, never system instructions or executable policy.
+
+Intent labels are `explain_this_page`, `what_can_i_do_here`, `feature_question`,
+`step_by_step_help`, and `unknown_feature`. An unknown or permission-filtered
+question returns zero sources plus a bounded no-source reason; it never invents a
+feature.
+
+### Evaluation and limitations
+
+Run the checked-in offline evaluation with:
+
+```bash
+python -m orkafin.knowledge.evaluate
+```
+
+The fixture set in `fixtures/retrieval_evaluation.yaml` currently has 22 cases:
+page and feature IDs/aliases, context-only questions, paraphrases, help, denied
+creation guidance, unknowns, and adversarial wording. It measures only exact
+intent and top-source agreement against those fixtures; it is not a production
+recall, safety, or relevance guarantee. The command prints total, passed, failed,
+top-source accuracy, and failed cases.
+
+Known limits are deliberate: matching understands only controlled catalog words,
+does not infer synonyms beyond declared aliases and terms in approved text, does
+not use candidate data, and cannot establish access to a page not represented by
+the resolved context plus its trusted permission metadata. An owning application
+must continue to authorize any page display or action independently.
+
+Consider an embeddings proposal only after a reviewed fixture expansion of at
+least 100 representative, permission-safe questions across the approved catalog
+shows less than 90% top-source accuracy for two consecutive catalog revisions,
+with the misses documented as semantic-paraphrase failures rather than missing
+aliases/catalog content. Such a proposal requires a new ADR and must preserve
+pre-retrieval app, lifecycle, and permission filtering, explicit source
+references, offline deterministic tests, and no candidate-content indexing.
+
 ## Verification and lifecycle rules
 
 `active` records may only point to active referenced records. A deprecated record
