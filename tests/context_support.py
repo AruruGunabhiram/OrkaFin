@@ -51,27 +51,15 @@ def context_hint(
     page_id: str = "candidate_profile",
     candidate_id: str | None = "CAND-1042",
 ) -> dict[str, object]:
-    """Return a browser hint carrying intentionally forged authorization claims."""
+    """Return the complete public navigation and selection hint."""
     selected_entity: dict[str, str] | None = None
     if candidate_id is not None:
         selected_entity = {
-            "app_id_hint": app_id,
-            "entity_type_hint": "candidate",
-            "entity_id_hint": candidate_id,
+            "type": "candidate",
+            "id": candidate_id,
         }
     return {
-        "app_id_hint": app_id,
-        "page_id_hint": page_id,
-        "workspace_id_hint": "workspace_recruiting_alpha",
-        "selected_entity_hint": selected_entity,
-        "claimed_user_id": "forged-admin-user",
-        "claimed_email": "forged.admin@example.invalid",
-        "claimed_role_ids": ["administrator"],
-        "claimed_permissions": [
-            "candidate.view",
-            "candidate.notes.view",
-            "candidate.update_start_date",
-        ],
-        "claimed_available_action_ids": ["candidate.update_start_date"],
-        "client_request_id_hint": "00000000-0000-4000-8000-000000000999",
+        "app_id": app_id,
+        "page": page_id,
+        "selected_entity": selected_entity,
     }

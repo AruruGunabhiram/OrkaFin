@@ -147,18 +147,10 @@ def redactor() -> CandidateSummaryRedactor:
     )
 
 
-def test_forged_client_role_permissions_and_actions_cannot_elevate_fixture_identity() -> None:
+def test_client_navigation_cannot_select_or_elevate_fixture_identity() -> None:
     hint = ClientContextHint(
-        app_id_hint="orka_ats",
-        claimed_user_id="forged-administrator",
-        claimed_email="forged.admin@example.invalid",
-        claimed_role_ids=("administrator",),
-        claimed_permissions=(
-            "candidate.notes.view",
-            "candidate.update_start_date",
-            "candidate.view",
-        ),
-        claimed_available_action_ids=("candidate.update_start_date",),
+        app_id="orka_ats",
+        page="candidate_profile",
     )
     identity = resolver().resolve_identity(
         IdentityResolutionRequest(

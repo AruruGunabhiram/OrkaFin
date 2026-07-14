@@ -136,17 +136,18 @@ authorization invalidation, and retention.
 `TrustedContextResolutionService`; authorization policy remains outside the route.
 The service receives the untrusted `ClientContextHint` separately from a
 `TrustedSessionResolver`. The latter is supplied by server/session composition and
-is never populated from request email, user ID, role, permission, action, or
-selected-record claims.
+is never populated from request content. The public hint accepts only app/page
+navigation and an optional `{type, id}` selection; identity, role, permission,
+action, workspace, request-ID, and legacy hint fields fail strict validation.
 
 The flow is fail-closed and ordered:
 
 1. resolve the configured adapter for the hinted app;
 2. ask the adapter to resolve the trusted session subject;
-3. resolve adapter-owned page, workspace, and selection context, then validate
-   the current page through page metadata;
-4. fetch fresh authorization facts and independently fetch available actions;
-5. evaluate app and page grants, then require `candidate.view` plus the exact
+3. resolve adapter-owned page, workspace, and selection context;
+4. fetch fresh authorization facts, evaluate app/page grants, then validate the
+   allowed page through page metadata and independently fetch available actions;
+5. require `candidate.view` plus the exact
    selected record grant before asking for a candidate summary;
 6. convert only already filtered adapter fields to the request-scoped domain
    summary and commit the sensitive-read audit before returning it.
@@ -155,8 +156,11 @@ The flow is fail-closed and ordered:
 for app, identity, page, workspace, selection, permissions, available actions,
 and candidate summary. Optional evidence is `null` exactly when the optional
 component is absent. The response never contains the original hint or upgrades a
-client claim into trusted data. See [`API.md`](API.md) for the reviewed shape and
-safe error codes.
+client selection into trusted data. Its minimized public identity omits the email
+that remains available in the internal verified identity during authorization and
+audit construction. Unknown apps/pages are distinct 404 client/configuration
+errors; adapter unavailability and timeout remain 503. See [`API.md`](API.md) for
+the reviewed shape and safe error codes.
 
 ## Confirmed-action request flow (optional and disabled initially)
 

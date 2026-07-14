@@ -257,7 +257,7 @@ class ResolveContextRequest(TrustedAdapterRequest):
 
     @model_validator(mode="after")
     def require_routed_app_hint(self) -> ResolveContextRequest:
-        if self.client_hint.app_id_hint != self.app_id:
+        if self.client_hint.app_id != self.app_id:
             raise ValueError("client app hint must match the routed adapter app")
         return self
 

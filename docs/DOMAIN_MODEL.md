@@ -31,7 +31,7 @@ Callers cannot relabel client claims as adapter-owned data by changing JSON.
 | Module | Public contracts |
 |---|---|
 | `orkafin.domain.identifiers` | `RequestId`, `CorrelationId`, `Permission`, `SafeReference`, `Sha256Digest`, `IdempotencyKey` |
-| `orkafin.domain.context` | `AppMetadata`, `ClientContextHint`, `ClientSelectedEntityHint`, `ResolvedPageContext`, `UserIdentity`, `IdentityVerificationStatus`, `Role`, `WorkspaceRef`, `SelectedEntityRef` |
+| `orkafin.domain.context` | `AppMetadata`, `ClientContextHint`, `ClientSelectedEntityHint`, `ResolvedPageContext`, `ResolvedUserIdentity`, `UserIdentity`, `IdentityVerificationStatus`, `Role`, `WorkspaceRef`, `SelectedEntityRef` |
 | `orkafin.domain.candidate` | `CandidateSummary`, visible typed candidate fields, redaction summary, optional sensitive notes excerpt |
 | `orkafin.domain.catalog` | `FeatureCatalogItem`, `PageCatalogItem`, `HelpArticle`, catalog provenance and lifecycle enums |
 | `orkafin.domain.events` | `UserEvent` and the meaningful-event allowlist |
@@ -51,8 +51,8 @@ JSON envelope is unchanged.
 
 | Contract/data | Authority | Classification and handling | Persistence rule |
 |---|---|---|---|
-| `ClientContextHint` | Browser/client | Restricted and wholly untrusted; claimed email, role, permissions, workspace, selected entity, and actions never authorize | Never persist as authority; do not copy raw hints into logs |
-| `AppMetadata`, `Role`, `WorkspaceRef`, `SelectedEntityRef`, `UserIdentity`, `ResolvedPageContext` | Owning application; local fixture only simulates it | Identity, permissions, entity IDs, and workspace facts are confidential/restricted | Request-scoped only; re-resolve before state change |
+| `ClientContextHint` | Browser/client | Confidential and wholly untrusted; only app/page navigation and optional entity selection are accepted | Never persist as authority; do not copy raw hints into logs |
+| `AppMetadata`, `Role`, `WorkspaceRef`, `SelectedEntityRef`, `UserIdentity`, `ResolvedUserIdentity`, `ResolvedPageContext` | Owning application; local fixture only simulates it | Identity, permissions, entity IDs, and workspace facts are confidential/restricted; verified email stays internal and is absent from `ResolvedUserIdentity` | Request-scoped only; re-resolve before state change |
 | `Permission` | Owning application | Confidential namespaced authorization fact | Request-scoped; no browser claim can create one |
 | `CandidateSummary` and visible candidate field values | OrkaATS | Restricted; minimize and redact from logs | Request-scoped only; never an OrkaFin candidate table or durable row replica |
 | `CandidateNotesExcerpt` | OrkaATS | Restricted, sensitive, and untrusted content; omitted by default, never logged or persisted | Never persist |
@@ -74,13 +74,17 @@ Prompt 5 must not turn it into a SQL table or unrestricted JSON snapshot.
 `ClientContextHint` and `ResolvedPageContext` cannot be substituted for one
 another:
 
-- The client model uses `*_hint` and `claimed_*` names and has the fixed trust
-  label `untrusted_client_hint`.
+- The client model accepts only `app_id`, `page`, and optional
+  `selected_entity: {type, id}` navigation data. Its internal fixed trust label is
+  `untrusted_client_hint`; it is not a client-settable field.
 - Client-selected entities use `ClientSelectedEntityHint`; only verified contexts
   use `SelectedEntityRef`.
-- Claimed permissions are validated strings, not `Permission` objects.
+- Client identity, role, permission, action, workspace, request-ID, and legacy hint
+  fields are forbidden rather than represented as claims.
 - The resolved model contains typed `Permission` objects, a verification source,
   an adapter response ID, a request ID, `resolved_at`, and `valid_until`.
+- Its public `ResolvedUserIdentity` omits the adapter-verified email retained in
+  the internal request-scoped `UserIdentity`.
 - Its fixed trust label is `verified_for_response_lifetime`.
 - A resolved context rejects unverified identities, cross-app workspace/entity
   references, mismatched candidate summaries, duplicate permissions, and candidate

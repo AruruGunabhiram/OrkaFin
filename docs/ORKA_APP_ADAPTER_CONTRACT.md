@@ -57,9 +57,10 @@ Duplicate capabilities and omission of a mandatory capability are schema errors.
 ## Trust and read rules
 
 `ClientContextHint` remains untrusted even when it is passed to an adapter. The
-adapter routes and verifies hints against its own authority. It must never copy
-claimed role, email, permissions, available actions, workspace, or record access
-into a trusted response without independent verification.
+adapter routes and verifies the app/page navigation and optional entity selection
+against its own authority. Public identity, role, permission, action, workspace,
+request-ID, and legacy hint fields are forbidden before adapter invocation. The
+adapter must still independently establish every trusted response fact.
 
 With the exception of public app metadata and identity establishment, sensitive
 calls use `TrustedAdapterRequest` or `ContextBoundAdapterRequest`. These schemas
@@ -154,7 +155,7 @@ facts are unavailable; callers may not fall back to browser claims or a model.
    permission-filtered `VisibleEntityField` values. Keep app-specific record
    schemas inside the adapter package.
 4. Resolve identity and authorization from a trusted application/server boundary.
-   Treat every `ClientContextHint` claim as untrusted.
+   Treat every `ClientContextHint` navigation/selection value as untrusted.
 5. Keep operational record access and business rules private to the application.
    Do not expose raw query clients, repositories, storage coordinates, or
    unrestricted payload dictionaries.

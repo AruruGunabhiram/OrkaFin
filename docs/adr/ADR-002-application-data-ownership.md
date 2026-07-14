@@ -53,8 +53,9 @@ but its schema and lifecycle are not OrkaFin persistence. A request-scoped redac
 
 ## Trust and failure boundary
 
-Browser-selected candidate IDs and claimed permissions are hints. The adapter must
-verify them. Adapter data is trusted only through an authenticated/configured
+Browser-selected candidate IDs are hints that the adapter must verify. Browser
+permission and identity fields are not accepted by the public context request at
+all. Adapter data is trusted only through an authenticated/configured
 implementation and for the relevant request; OrkaFin must re-resolve before a
 write. An unavailable adapter cannot be replaced by browser values, provider
 guesses, or stale local candidate copies.
@@ -119,4 +120,3 @@ permissions, cross-app entity joins, or a new write path requires a superseding 
 and OrkaATS/security approval. It must document field classification, consent,
 freshness/revocation, retention/deletion, encryption, reconciliation, audit,
 incident response, and a migration/rollback plan.
-

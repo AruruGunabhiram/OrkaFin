@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, ClassVar, Literal
+from typing import ClassVar, Literal
 
-from pydantic import Field, StringConstraints, field_validator, model_validator
+from pydantic import Field, model_validator
 
 from orkafin.domain.base import (
     DataClassification,
@@ -24,16 +24,6 @@ from orkafin.domain.base import (
 )
 from orkafin.domain.candidate import CandidateSummary
 from orkafin.domain.identifiers import Permission, RequestId
-
-ClaimedPermissionText = Annotated[
-    str,
-    StringConstraints(
-        min_length=3,
-        max_length=96,
-        pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
-        strict=True,
-    ),
-]
 
 
 class AppStatus(StrEnum):
@@ -128,9 +118,8 @@ class ClientSelectedEntityHint(DomainModel):
         persistence=PersistencePolicy.NEVER,
     )
 
-    app_id_hint: LowercaseIdentifier
-    entity_type_hint: LowercaseIdentifier
-    entity_id_hint: Identifier
+    type: LowercaseIdentifier
+    id: Identifier
 
 
 class IdentityVerificationStatus(StrEnum):
@@ -188,25 +177,63 @@ class UserIdentity(DomainModel):
         return self
 
 
+class ResolvedUserIdentity(DomainModel):
+    """Verified identity facts safe to disclose in a resolved-context response."""
+
+    data_policy: ClassVar[ModelDataPolicy] = ModelDataPolicy(
+        owner=DataOwner.OWNING_APPLICATION,
+        classification=DataClassification.RESTRICTED,
+        persistence=PersistencePolicy.REQUEST_SCOPED_ONLY,
+        sensitive_fields=(
+            SensitiveFieldPolicy(
+                field_name="user_id",
+                classification=DataClassification.RESTRICTED,
+                rules=(HandlingRule.MINIMIZE, HandlingRule.REDACT_FROM_LOGS),
+            ),
+        ),
+    )
+
+    user_id: Identifier
+    display_name: ShortText | None = None
+    role: Role
+    verification_status: IdentityVerificationStatus
+    verified_at: UtcDatetime
+    verification_reference: Identifier
+
+    @model_validator(mode="after")
+    def require_verified_identity(self) -> ResolvedUserIdentity:
+        if self.verification_status is IdentityVerificationStatus.UNVERIFIED:
+            raise ValueError("resolved response identity must be verified")
+        return self
+
+    @classmethod
+    def from_verified(cls, identity: UserIdentity) -> ResolvedUserIdentity:
+        """Minimize a verified internal identity without exposing its email address."""
+        if (
+            identity.verification_status is IdentityVerificationStatus.UNVERIFIED
+            or identity.user_id is None
+            or identity.role is None
+            or identity.verified_at is None
+            or identity.verification_reference is None
+        ):
+            raise ValueError("resolved response identity requires verified identity evidence")
+        return cls(
+            user_id=identity.user_id,
+            display_name=identity.display_name,
+            role=identity.role,
+            verification_status=identity.verification_status,
+            verified_at=identity.verified_at,
+            verification_reference=identity.verification_reference,
+        )
+
+
 class ClientContextHint(DomainModel):
-    """Browser-provided context; every identity and authorization field is untrusted."""
+    """Browser-provided navigation and selection hints; never authorization facts."""
 
     data_policy: ClassVar[ModelDataPolicy] = ModelDataPolicy(
         owner=DataOwner.CLIENT,
-        classification=DataClassification.RESTRICTED,
+        classification=DataClassification.CONFIDENTIAL,
         persistence=PersistencePolicy.NEVER,
-        sensitive_fields=(
-            SensitiveFieldPolicy(
-                field_name="claimed_email",
-                classification=DataClassification.RESTRICTED,
-                rules=(HandlingRule.REDACT_FROM_LOGS, HandlingRule.NEVER_PERSIST),
-            ),
-            SensitiveFieldPolicy(
-                field_name="claimed_permissions",
-                classification=DataClassification.CONFIDENTIAL,
-                rules=(HandlingRule.NEVER_PERSIST,),
-            ),
-        ),
     )
     model_config = {
         **DomainModel.model_config,
@@ -214,46 +241,22 @@ class ClientContextHint(DomainModel):
             "examples": [
                 {
                     "schema_version": "v1",
-                    "app_id_hint": "orka_ats",
-                    "page_id_hint": "candidate_profile",
-                    "workspace_id_hint": "workspace_001",
-                    "selected_entity_hint": {
+                    "app_id": "orka_ats",
+                    "page": "candidate_profile",
+                    "selected_entity": {
                         "schema_version": "v1",
-                        "app_id_hint": "orka_ats",
-                        "entity_type_hint": "candidate",
-                        "entity_id_hint": "CAND-1001",
+                        "type": "candidate",
+                        "id": "CAND-1001",
                     },
-                    "claimed_email": "synthetic.user@example.invalid",
-                    "claimed_role_ids": ["admin"],
-                    "claimed_permissions": ["candidate.view"],
-                    "claimed_available_action_ids": ["candidate.update_start_date"],
                 }
             ]
         },
     }
 
-    trust_label: Literal["untrusted_client_hint"] = "untrusted_client_hint"
-    app_id_hint: LowercaseIdentifier
-    page_id_hint: LowercaseIdentifier | None = None
-    workspace_id_hint: Identifier | None = None
-    selected_entity_hint: ClientSelectedEntityHint | None = None
-    claimed_user_id: Identifier | None = None
-    claimed_email: EmailAddress | None = None
-    claimed_role_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=10)
-    claimed_permissions: tuple[ClaimedPermissionText, ...] = Field(default=(), max_length=100)
-    claimed_available_action_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
-    client_request_id_hint: RequestId | None = None
-
-    @field_validator(
-        "claimed_role_ids",
-        "claimed_permissions",
-        "claimed_available_action_ids",
-        mode="before",
-    )
-    @classmethod
-    def accept_json_arrays(cls, value: object) -> object:
-        """Accept the JSON array representation while retaining strict Python tuples."""
-        return tuple(value) if isinstance(value, list) else value
+    trust_label: ClassVar[Literal["untrusted_client_hint"]] = "untrusted_client_hint"
+    app_id: LowercaseIdentifier
+    page: LowercaseIdentifier
+    selected_entity: ClientSelectedEntityHint | None = None
 
 
 class ContextVerificationSource(StrEnum):
@@ -320,7 +323,7 @@ class ResolvedPageContext(DomainModel):
     request_id: RequestId
     app: AppMetadata
     page_id: LowercaseIdentifier
-    identity: UserIdentity
+    identity: ResolvedUserIdentity
     workspace: WorkspaceRef
     selected_entity: SelectedEntityRef | None = None
     permissions: tuple[Permission, ...] = Field(max_length=100)
@@ -335,7 +338,7 @@ class ResolvedPageContext(DomainModel):
             raise ValueError("resolved context requires a verified identity")
         if self.workspace.app_id != self.app.app_id:
             raise ValueError("workspace app must match resolved app")
-        if self.identity.role is not None and self.identity.role.owner_app_id != self.app.app_id:
+        if self.identity.role.owner_app_id != self.app.app_id:
             raise ValueError("identity role owner must match resolved app")
         if self.selected_entity is not None and self.selected_entity.app_id != self.app.app_id:
             raise ValueError("selected entity app must match resolved app")

@@ -49,6 +49,7 @@ from orkafin.domain.context import (
     IdentityVerificationStatus,
     ResolvedContextTrust,
     ResolvedPageContext,
+    ResolvedUserIdentity,
     Role,
     SelectedEntityRef,
     UserIdentity,
@@ -298,22 +299,14 @@ def receipt(
     )
 
 
-def test_context_models_keep_client_claims_separate_from_verified_facts() -> None:
+def test_context_models_accept_only_client_navigation_and_selection_hints() -> None:
     hint = ClientContextHint(
-        app_id_hint="orka_ats",
-        page_id_hint="candidate_profile",
-        workspace_id_hint="workspace_001",
-        selected_entity_hint=ClientSelectedEntityHint(
-            app_id_hint="orka_ats",
-            entity_type_hint="candidate",
-            entity_id_hint="CAND-1001",
+        app_id="orka_ats",
+        page="candidate_profile",
+        selected_entity=ClientSelectedEntityHint(
+            type="candidate",
+            id="CAND-1001",
         ),
-        claimed_user_id="forged-admin",
-        claimed_email="forged.admin@example.invalid",
-        claimed_role_ids=("admin",),
-        claimed_permissions=("candidate.view", "candidate.update_start_date"),
-        claimed_available_action_ids=("candidate.update_start_date",),
-        client_request_id_hint=request_id(),
     )
     resolved = ResolvedPageContext(
         verification_source=ContextVerificationSource.LOCAL_FIXTURE,
@@ -355,7 +348,7 @@ def test_context_models_keep_client_claims_separate_from_verified_facts() -> Non
         request_id=request_id(),
         app=app_metadata(),
         page_id="candidate_profile",
-        identity=identity(),
+        identity=ResolvedUserIdentity.from_verified(identity()),
         workspace=workspace(),
         selected_entity=target(),
         permissions=(permission(),),
@@ -365,9 +358,27 @@ def test_context_models_keep_client_claims_separate_from_verified_facts() -> Non
     )
 
     assert hint.trust_label == "untrusted_client_hint"
+    assert set(ClientContextHint.model_fields) == {
+        "schema_version",
+        "app_id",
+        "page",
+        "selected_entity",
+    }
+    assert set(ClientSelectedEntityHint.model_fields) == {"schema_version", "type", "id"}
     assert resolved.trust_label == "verified_for_response_lifetime"
     assert resolved.permissions == (permission(),)
+    assert "email" not in ResolvedUserIdentity.model_fields
     assert "claimed_permissions" not in ResolvedPageContext.model_fields
+
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        ClientContextHint.model_validate(
+            {
+                "app_id": "orka_ats",
+                "page": "candidate_profile",
+                "claimed_role_ids": ["administrator"],
+                "claimed_permissions": ["candidate.view"],
+            }
+        )
 
     payload = resolved.model_dump()
     payload["claimed_permissions"] = ("candidate.update_start_date",)
@@ -812,5 +823,5 @@ def test_schema_examples_are_synthetic_and_public_contracts_are_versioned() -> N
         assert schema["properties"]["schema_version"]["const"] == "v1"
         assert schema.get("examples")
 
-    assert "example.invalid" in json.dumps(ClientContextHint.model_json_schema())
+    assert "claimed_permissions" not in json.dumps(ClientContextHint.model_json_schema())
     assert DomainModel.model_fields["schema_version"].default == "v1"

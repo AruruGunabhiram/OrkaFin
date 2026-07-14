@@ -23,7 +23,7 @@ from orkafin.domain.context import (
 
 
 class IdentityResolutionRequest(DomainModel):
-    """Server-created selection plus browser claims that remain explicitly untrusted."""
+    """Server-created identity selection plus non-authoritative client navigation."""
 
     data_policy: ClassVar[ModelDataPolicy] = ModelDataPolicy(
         owner=DataOwner.ORKAFIN,
@@ -38,7 +38,7 @@ class IdentityResolutionRequest(DomainModel):
 
 @runtime_checkable
 class IdentityResolver(Protocol):
-    """Resolve request identity without treating browser claims as authority."""
+    """Resolve request identity without treating client navigation as authority."""
 
     def resolve_identity(self, request: IdentityResolutionRequest) -> UserIdentity:
         """Return a verified identity or the claim-free unverified identity."""
@@ -58,7 +58,7 @@ class LocalFixtureIdentityResolver:
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def resolve_identity(self, request: IdentityResolutionRequest) -> UserIdentity:
-        """Ignore every client claim and resolve only the trusted server selection."""
+        """Ignore client navigation and resolve only the trusted server selection."""
         fixture = self._fixtures.find_user(request.trusted_subject_id)
         if (
             fixture is None

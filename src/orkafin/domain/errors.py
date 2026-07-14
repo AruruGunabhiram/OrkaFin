@@ -45,6 +45,8 @@ class ErrorCode(StrEnum):
     IDENTITY_UNVERIFIED = "identity_unverified"
     CONTEXT_ACCESS_DENIED = "context_access_denied"
     CANDIDATE_ACCESS_DENIED = "candidate_access_denied"
+    APP_NOT_SUPPORTED = "app_not_supported"
+    PAGE_NOT_SUPPORTED = "page_not_supported"
     ADAPTER_UNAVAILABLE = "adapter_unavailable"
     INTERNAL_ERROR = "internal_error"
 

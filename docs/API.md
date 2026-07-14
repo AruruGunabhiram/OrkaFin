@@ -8,37 +8,33 @@ is intentional: the call performs verification and returns an ephemeral value; i
 does not create or update a durable `context` resource. The `/api/v1` prefix fixes
 the public contract version independently of internal package versions.
 
-The request body is exactly `ClientContextHint`. No header or body field selects a
-trusted user. The application composition root supplies a `TrustedSessionResolver`
-from server/session state. The default resolver returns no subject and therefore
-fails closed. `StaticTrustedSessionResolver` is a synthetic test harness only.
+The request body is exactly `ClientContextHint`: required `app_id` and `page`
+navigation hints plus an optional `{type, id}` selection. The inherited
+`schema_version` may be omitted and defaults to `v1`. There is no public workspace
+hint or client request-ID field because the trusted session resolves workspace and
+request middleware owns the request ID. No header or body field selects a trusted
+user. The application composition root supplies a `TrustedSessionResolver` from
+server/session state. The default resolver returns no subject and therefore fails
+closed. `StaticTrustedSessionResolver` is a synthetic test harness only.
 
-Example request (all claims remain untrusted):
+Example request:
 
 ```json
 {
-  "schema_version": "v1",
-  "app_id_hint": "orka_ats",
-  "page_id_hint": "candidate_profile",
-  "workspace_id_hint": "workspace_recruiting_alpha",
-  "selected_entity_hint": {
-    "schema_version": "v1",
-    "app_id_hint": "orka_ats",
-    "entity_type_hint": "candidate",
-    "entity_id_hint": "CAND-1042"
-  },
-  "claimed_user_id": "forged-admin-user",
-  "claimed_email": "forged.admin@example.invalid",
-  "claimed_role_ids": ["administrator"],
-  "claimed_permissions": ["candidate.update_start_date"],
-  "claimed_available_action_ids": ["candidate.update_start_date"],
-  "client_request_id_hint": "00000000-0000-4000-8000-000000000999"
+  "app_id": "orka_ats",
+  "page": "candidate_profile",
+  "selected_entity": {
+    "type": "candidate",
+    "id": "CAND-1042"
+  }
 }
 ```
 
-The server request ID comes from request middleware; `client_request_id_hint` does
-not replace it. With the trusted synthetic session fixed to `limited_viewer`, the
-important portion of the response is:
+`extra="forbid"` applies at both request levels. Identity, email, role,
+permission, available-action, workspace, request-ID, legacy `*_hint`, and any
+other undeclared fields receive `422 validation_error`; none reaches identity or
+authorization resolution. With the trusted synthetic session fixed to
+`limited_viewer`, the important portion of the response is:
 
 ```json
 {
@@ -102,6 +98,7 @@ important portion of the response is:
   "identity": {
     "schema_version": "v1",
     "user_id": "mock-user-limited-viewer",
+    "display_name": "Synthetic Limited Viewer",
     "role": {
       "schema_version": "v1",
       "role_id": "limited_viewer",
@@ -142,6 +139,10 @@ important portion of the response is:
 }
 ```
 
+The adapter-verified email remains in the internal request-scoped `UserIdentity`
+used by authorization and audit construction. Public `ResolvedPageContext`
+contains the minimized `ResolvedUserIdentity`, whose schema has no email field.
+
 The abbreviated visible-field objects above omit their allowed values only to
 keep this review example compact; the real typed response contains the complete
 allowed `label`, `sensitivity`, and value objects. It never contains hidden field
@@ -156,14 +157,39 @@ All failures use the versioned `ApiError` envelope and the middleware request ID
 | HTTP | Code | Meaning and disclosure rule |
 |---:|---|---|
 | 401 | `identity_unverified` | No trusted adapter identity; no candidate data is returned |
+| 404 | `app_not_supported` | Requested app has no configured V1 adapter; no application data is returned |
+| 404 | `page_not_supported` | Requested page is unknown to the configured app; no application data is returned |
 | 403 | `context_access_denied` | Trusted app/page facts deny access; no claimed grant is echoed |
 | 403 | `candidate_access_denied` | Exact candidate/permission check failed; candidate existence and fields are not disclosed |
 | 422 | `validation_error` | Request shape failed bounded validation; only field locations are returned |
-| 503 | `adapter_unavailable` | Unknown app/page, unavailable capability, timeout, or adapter failure; message states that no application data was returned |
+| 503 | `adapter_unavailable` | Configured adapter is unavailable, times out, or otherwise cannot return trusted application data |
 | 500 | `internal_error` | Unexpected safe failure; no exception content or candidate data |
 
 The endpoint performs no answer generation, recommendation, action proposal,
 confirmation, or write.
+
+Example rejected role/permission claim:
+
+```json
+{
+  "schema_version": "v1",
+  "code": "validation_error",
+  "message": "Request validation failed.",
+  "request_id": "00000000-0000-4000-8000-000000000811",
+  "details": {"fields": ["body.role", "body.permissions"]}
+}
+```
+
+Example private-candidate denial:
+
+```json
+{
+  "schema_version": "v1",
+  "code": "candidate_access_denied",
+  "message": "The requested candidate information is not available for the verified account.",
+  "request_id": "00000000-0000-4000-8000-000000000811"
+}
+```
 
 ## Audit behavior
 
@@ -181,6 +207,34 @@ confirmation, or write.
 
 There is no public audit-read endpoint.
 
+The minimized internal audit details for the examples above are:
+
+```json
+{
+  "event_type": "candidate_read",
+  "outcome": "allowed",
+  "target_entity_id": "CAND-1042",
+  "details": {
+    "visible_field_count": 3,
+    "redacted_field_count": 5,
+    "redaction_applied": true,
+    "source": "application_adapter"
+  }
+}
+```
+
+```json
+{
+  "event_type": "permission_denied",
+  "outcome": "denied",
+  "target_entity_id": "CAND-1099",
+  "details": {
+    "check": "record",
+    "decision_code": "record_access_denied"
+  }
+}
+```
+
 ## Prompt 11 human review checkpoint
 
 Prompt 12 must not begin until a human reviewer approves or requests changes to:
@@ -188,7 +242,7 @@ Prompt 12 must not begin until a human reviewer approves or requests changes to:
 - the separation between the untrusted request and trusted session subject;
 - the top-level and per-component trust/source labels;
 - the limited-viewer redacted candidate example;
-- the 401/403/503 response codes and non-disclosing messages; and
+- the 401/403/404/422/503 response codes and non-disclosing messages; and
 - the audit target reference plus minimized detail fields described above.
 
 | Review field | Value |

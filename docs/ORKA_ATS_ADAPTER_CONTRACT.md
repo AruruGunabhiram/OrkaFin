@@ -118,10 +118,11 @@ operations return `unsupported_capability`; they do not return empty success.
 
 ## Trusted identity assertions
 
-Browser-provided identity, email, role, permissions, workspace, selected record,
-and available actions are untrusted hints. An Apps Script page running in a user's
-browser does not become an identity authority merely because it is served by
-OrkaATS.
+The public browser context contains only app/page navigation and optional selected
+record ID/type. Identity, email, role, permissions, workspace, request ID, and
+available actions are forbidden request fields. The remaining selection is still
+untrusted: an Apps Script page running in a user's browser does not become an
+identity or record-access authority merely because it is served by OrkaATS.
 
 Before `ResolveCurrentUserResponse` may use `adapter_verified`, the production
 design must let OrkaFin verify all of the following from authenticated evidence:

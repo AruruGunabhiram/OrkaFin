@@ -32,7 +32,7 @@ def _audit_rows(dependencies: ApplicationDependencies) -> tuple[object, ...]:
         return tuple(OrkaFinRepository(session).list_audit_records())
 
 
-def test_forged_admin_permissions_and_actions_cannot_expand_limited_context(
+def test_verified_limited_context_is_redacted_and_email_is_not_public(
     tmp_path: Path,
 ) -> None:
     application, dependencies = build_context_application(tmp_path / "forged-context.db")
@@ -44,7 +44,9 @@ def test_forged_admin_permissions_and_actions_cannot_expand_limited_context(
     assert body["request_id"] == REQUEST_ID
     assert body["identity"]["user_id"] == "mock-user-limited-viewer"
     assert body["identity"]["role"]["role_id"] == "limited_viewer"
-    assert body["identity"]["email"] == "limited.viewer.mock@example.invalid"
+    assert "email" not in body["identity"]
+    public_identity_schema = application.openapi()["components"]["schemas"]["ResolvedUserIdentity"]
+    assert "email" not in public_identity_schema["properties"]
     assert body["permissions"] == ["candidate.view"]
     assert body["available_action_ids"] == []
     assert [field["field_id"] for field in body["candidate_summary"]["visible_fields"]] == [
@@ -60,7 +62,6 @@ def test_forged_admin_permissions_and_actions_cannot_expand_limited_context(
         "explanation_code": "field_permissions_applied",
     }
     assert "notes_excerpt" not in body["candidate_summary"]
-    assert body["request_id"] != context_hint()["client_request_id_hint"]
 
     trust = body["component_trust"]
     for component in (
@@ -85,6 +86,33 @@ def test_forged_admin_permissions_and_actions_cannot_expand_limited_context(
         "redaction_applied": True,
         "source": "application_adapter",
     }
+
+
+@pytest.mark.parametrize(
+    "claims",
+    (
+        {"role": "administrator", "permissions": ["*"]},
+        {
+            "claimed_role_ids": ["administrator"],
+            "claimed_permissions": ["candidate.view"],
+        },
+    ),
+)
+def test_client_supplied_role_and_permission_fields_are_validation_errors(
+    tmp_path: Path, claims: dict[str, object]
+) -> None:
+    application, dependencies = build_context_application(tmp_path / "rejected-claims.db")
+    request_body = context_hint()
+    request_body.update(claims)
+
+    response = asyncio.run(_post(application, request_body))
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "validation_error"
+    assert body["message"] == "Request validation failed."
+    assert set(body["details"]["fields"]) >= {f"body.{field}" for field in claims}
+    assert _audit_rows(dependencies) == ()
 
 
 def test_candidate_record_swap_is_denied_without_leaking_hidden_content(

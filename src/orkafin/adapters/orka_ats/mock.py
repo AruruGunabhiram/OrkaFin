@@ -173,12 +173,10 @@ class MockOrkaATSAdapter:
         user = self._verified_user(request.trusted_identity)
         hint = request.client_hint
         workspace = self._workspace_for_user(user)
-        if hint.workspace_id_hint is not None and hint.workspace_id_hint != workspace.workspace_id:
-            raise AdapterUnauthorizedError(request_id=request.request_id, app_id=request.app_id)
-        page_id = hint.page_id_hint or "candidate_dashboard"
-        if page_id not in user["allowed_page_ids"] or page_id not in self._fixtures["pages"]:
+        page_id = hint.page
+        if page_id not in self._fixtures["pages"]:
             raise AdapterNotFoundError(request_id=request.request_id, app_id=request.app_id)
-        selected = self._selected_hint(hint.selected_entity_hint, workspace.workspace_id)
+        selected = self._selected_hint(hint.selected_entity, workspace.workspace_id)
         now = self._now()
         context = ResolvedApplicationContext(
             app=self._app_metadata(),
@@ -197,7 +195,7 @@ class MockOrkaATSAdapter:
         self, request: GetUserPermissionsRequest
     ) -> GetUserPermissionsResponse:
         await self._before(AdapterCapability.GET_USER_PERMISSIONS, request)
-        user = self._authorized_context(request)
+        user = self._authorized_context(request, require_page_access=False)
         records = tuple(
             RecordVisibilityGrant(
                 record=SelectedEntityRef(
@@ -481,7 +479,9 @@ class MockOrkaATSAdapter:
             raise AdapterUnauthorizedError()
         return cast(dict[str, Any], user)
 
-    def _authorized_context(self, request: Any) -> dict[str, Any]:
+    def _authorized_context(
+        self, request: Any, *, require_page_access: bool = True
+    ) -> dict[str, Any]:
         user = self._verified_user(request.trusted_identity)
         context = request.context
         if (
@@ -491,7 +491,7 @@ class MockOrkaATSAdapter:
             raise AdapterUnauthorizedError(request_id=request.request_id, app_id=request.app_id)
         if context.workspace != self._workspace_for_user(user):
             raise AdapterUnauthorizedError(request_id=request.request_id, app_id=request.app_id)
-        if context.page_id not in user["allowed_page_ids"]:
+        if require_page_access and context.page_id not in user["allowed_page_ids"]:
             raise AdapterNotFoundError(request_id=request.request_id, app_id=request.app_id)
         return user
 
@@ -506,13 +506,13 @@ class MockOrkaATSAdapter:
     def _selected_hint(self, hint: Any, workspace_id: str) -> SelectedEntityRef | None:
         if hint is None:
             return None
-        if hint.app_id_hint != MOCK_ORKA_ATS_APP_ID or hint.entity_type_hint != "candidate":
+        if hint.type != "candidate":
             raise AdapterValidationFailedError()
-        candidate = self._fixtures["candidates"].get(hint.entity_id_hint)
+        candidate = self._fixtures["candidates"].get(hint.id)
         if candidate is None or candidate["workspace_id"] != workspace_id:
             return None
         return SelectedEntityRef(
-            app_id=MOCK_ORKA_ATS_APP_ID, entity_type="candidate", entity_id=hint.entity_id_hint
+            app_id=MOCK_ORKA_ATS_APP_ID, entity_type="candidate", entity_id=hint.id
         )
 
     def _visible_candidate(

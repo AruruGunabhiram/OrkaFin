@@ -53,7 +53,7 @@ def scenario() -> AdapterContractScenario:
         app_id=APP_ID,
         request_id=REQUEST_ID,
         trusted_subject_reference="sample-subject",
-        client_hint=ClientContextHint(app_id_hint=APP_ID, page_id_hint="home_page"),
+        client_hint=ClientContextHint(app_id=APP_ID, page="home_page"),
     )
 
 

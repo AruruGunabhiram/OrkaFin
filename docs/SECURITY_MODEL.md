@@ -44,10 +44,11 @@ action authorization.
 The local demo selects from explicit synthetic identities on the trusted server
 side. `IdentityResolutionRequest.trusted_subject_id` must be constructed from
 server configuration or another trusted application mechanism; its trust label is
-documentation, not authentication. Browser-submitted email, user ID, role,
-permissions, workspace, and available actions remain only `ClientContextHint`
-claims. `LocalFixtureIdentityResolver` ignores them, including when a browser
-claims administrator privileges while the selected fixture is a limited viewer.
+documentation, not authentication. Public `ClientContextHint` accepts only app,
+page, and optional entity-selection navigation. Browser-submitted email, user ID,
+role, permissions, workspace, request ID, and available actions are forbidden
+request fields and fail validation before `LocalFixtureIdentityResolver` or the
+adapter is called.
 
 For the Prompt 11 endpoint, `TrustedSessionResolver` is the only source of the
 opaque subject reference passed to `resolve_current_user`. It receives app and
@@ -110,6 +111,9 @@ returned component. App/workspace/selection bind to the resolved-context respons
 identity, page, permissions, actions, and candidate summary bind to their own
 operation responses. Missing optional selection/summary values have no trust
 evidence object, preventing a fabricated candidate from appearing verified.
+The internal adapter-verified `UserIdentity` retains email for request-scoped
+authorization and audit construction, while the public `ResolvedUserIdentity`
+omits email entirely.
 
 The provisional fixture users, exact grants, field matrix, denial codes, and human
 checkpoint are recorded in [`PERMISSION_MODEL.md`](PERMISSION_MODEL.md).

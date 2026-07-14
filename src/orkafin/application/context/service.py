@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from orkafin.adapters import (
     AdapterCapability,
+    AdapterNotFoundError,
     AdapterRegistry,
     EntityBooleanValue,
     EntityDateValue,
@@ -28,10 +29,12 @@ from orkafin.adapters import (
 )
 from orkafin.application.auth import TrustedSessionResolver
 from orkafin.application.context.errors import (
+    AppNotSupportedError,
     CandidateAccessDeniedError,
     ContextAccessDeniedError,
     ContextUnavailableError,
     IdentityUnverifiedContextError,
+    PageNotSupportedError,
 )
 from orkafin.application.permissions import AuthorizationContext, PermissionEvaluator
 from orkafin.domain.audit import AuditEventType, AuditOutcome, AuditRecord
@@ -56,6 +59,7 @@ from orkafin.domain.context import (
     IdentityVerificationStatus,
     ResolvedContextTrust,
     ResolvedPageContext,
+    ResolvedUserIdentity,
     SelectedEntityRef,
     UserIdentity,
 )
@@ -108,12 +112,15 @@ class TrustedContextResolutionService:
         self, *, client_hint: ClientContextHint, request_id: RequestId
     ) -> ResolvedPageContext:
         """Resolve identity, page, authorization, actions, and an allowed candidate summary."""
-        app_id = client_hint.app_id_hint
-        adapter = self._adapter_registry.resolve(
-            app_id,
-            required_capability=AdapterCapability.GET_AVAILABLE_ACTIONS,
-            request_id=request_id,
-        )
+        app_id = client_hint.app_id
+        try:
+            adapter = self._adapter_registry.resolve(
+                app_id,
+                required_capability=AdapterCapability.GET_AVAILABLE_ACTIONS,
+                request_id=request_id,
+            )
+        except AdapterNotFoundError as error:
+            raise AppNotSupportedError from error
         trusted_subject = self._trusted_session_resolver.resolve_subject_reference(
             app_id=app_id,
             request_id=request_id,
@@ -133,25 +140,18 @@ class TrustedContextResolutionService:
         if identity.role is None or identity.role.owner_app_id != app_id:
             raise ContextUnavailableError
 
-        context_response = await adapter.resolve_context(
-            ResolveContextRequest(
-                request_id=request_id,
-                app_id=app_id,
-                trusted_identity=identity,
-                client_hint=client_hint,
+        try:
+            context_response = await adapter.resolve_context(
+                ResolveContextRequest(
+                    request_id=request_id,
+                    app_id=app_id,
+                    trusted_identity=identity,
+                    client_hint=client_hint,
+                )
             )
-        )
+        except AdapterNotFoundError as error:
+            raise PageNotSupportedError from error
         application_context = context_response.context
-        page_response = await adapter.get_page_metadata(
-            GetPageMetadataRequest(
-                request_id=request_id,
-                app_id=app_id,
-                trusted_identity=identity,
-                context=application_context,
-            )
-        )
-        if page_response.page_metadata.page_id != application_context.page_id:
-            raise ContextUnavailableError
 
         permissions_response = await adapter.get_user_permissions(
             GetUserPermissionsRequest(
@@ -193,6 +193,20 @@ class TrustedContextResolutionService:
                 decision_code=page_decision.code.value,
             )
             raise ContextAccessDeniedError
+
+        try:
+            page_response = await adapter.get_page_metadata(
+                GetPageMetadataRequest(
+                    request_id=request_id,
+                    app_id=app_id,
+                    trusted_identity=identity,
+                    context=application_context,
+                )
+            )
+        except AdapterNotFoundError as error:
+            raise PageNotSupportedError from error
+        if page_response.page_metadata.page_id != application_context.page_id:
+            raise ContextUnavailableError
 
         actions_response = await adapter.get_available_actions(
             GetAvailableActionsRequest(
@@ -270,7 +284,7 @@ class TrustedContextResolutionService:
             request_id=request_id,
             app=application_context.app,
             page_id=application_context.page_id,
-            identity=identity,
+            identity=ResolvedUserIdentity.from_verified(identity),
             workspace=application_context.workspace,
             selected_entity=selected_entity,
             permissions=permissions_response.authorization_facts.permissions,

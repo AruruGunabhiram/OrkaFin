@@ -46,6 +46,7 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
         responses={
             status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
             status.HTTP_403_FORBIDDEN: {"model": ApiError},
+            status.HTTP_404_NOT_FOUND: {"model": ApiError},
             status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ApiError},
         },
         tags=["context"],

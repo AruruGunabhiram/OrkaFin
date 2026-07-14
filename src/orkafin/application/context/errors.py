@@ -32,6 +32,22 @@ class CandidateAccessDeniedError(DomainError):
     )
 
 
+class AppNotSupportedError(DomainError):
+    """The requested application has no configured V1 adapter."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = ErrorCode.APP_NOT_SUPPORTED
+    public_message = "The requested application is not supported."
+
+
+class PageNotSupportedError(DomainError):
+    """The requested page is not known to the configured application adapter."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = ErrorCode.PAGE_NOT_SUPPORTED
+    public_message = "The requested application page is not supported."
+
+
 class ContextUnavailableError(DomainError):
     """Trusted context responses were incomplete or internally inconsistent."""
 

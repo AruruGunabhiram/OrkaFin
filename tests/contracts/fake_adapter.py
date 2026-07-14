@@ -123,7 +123,7 @@ class MinimalContractFakeAdapter:
         context = ResolvedApplicationContext(
             app=self._app_metadata(),
             identity=request.trusted_identity,
-            page_id=request.client_hint.page_id_hint or "home_page",
+            page_id=request.client_hint.page,
             workspace=WorkspaceRef(workspace_id="sample-workspace", app_id=APP_ID),
             resolved_at=NOW,
             valid_until=LATER,

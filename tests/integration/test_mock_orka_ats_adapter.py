@@ -38,20 +38,13 @@ REQUEST_ID = RequestId(root="00000000-0000-4000-8000-000000000901")
 
 def _hint(*, candidate_id: str | None = "CAND-1042") -> ClientContextHint:
     return ClientContextHint(
-        app_id_hint="orka_ats",
-        page_id_hint="candidate_profile",
-        workspace_id_hint="workspace_recruiting_alpha",
-        selected_entity_hint=(
-            ClientSelectedEntityHint(
-                app_id_hint="orka_ats", entity_type_hint="candidate", entity_id_hint=candidate_id
-            )
+        app_id="orka_ats",
+        page="candidate_profile",
+        selected_entity=(
+            ClientSelectedEntityHint(type="candidate", id=candidate_id)
             if candidate_id is not None
             else None
         ),
-        claimed_email="forged@example.invalid",
-        claimed_role_ids=("administrator",),
-        claimed_permissions=("candidate.update_start_date",),
-        claimed_available_action_ids=("candidate.update_start_date",),
     )
 
 
@@ -87,7 +80,7 @@ def test_mock_adapter_conforms_to_general_contract_suite() -> None:
     asyncio.run(assert_adapter_contract(MockOrkaATSAdapter, scenario))
 
 
-def test_recruiter_summary_is_redacted_inside_adapter_and_browser_claims_do_not_expand_it() -> None:
+def test_recruiter_summary_is_redacted_inside_adapter() -> None:
     async def exercise() -> None:
         adapter = MockOrkaATSAdapter()
         identity, context = await _identity_and_context(adapter, "recruiter")
