@@ -1,7 +1,7 @@
 # ADR-004: Provider-Independent AI Interface
 
-- **Status:** Proposed — pending Prompt 1 human approval
-- **Date:** 2026-07-13
+- **Status:** Accepted — implemented in Prompt 13
+- **Date:** 2026-07-14
 - **Decision owners:** OrkaFin engineering, product, and security
 - **Scope:** Response generation and external-model authority
 
@@ -20,9 +20,9 @@ and validate what facts and response types are allowed.
 
 Define a typed provider-independent response interface with a deterministic local
 implementation as the default. Its input is a bounded structured object containing
-the validated user intent classification, permitted redacted context, retrieved
-source excerpts/revisions, allowed response type, and correlation ID. Its output is
-a typed response draft with claims tied to supplied source IDs.
+the user question, validated intent classification, permitted redacted context,
+retrieved source excerpts, and response constraints. Its output is a typed response
+draft with claims tied to supplied source IDs.
 
 All tests and the full local demo run with no external key or network access. A
 later external provider is optional and selected by explicit configuration. It may

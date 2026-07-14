@@ -9,6 +9,8 @@ from orkafin.application.context import AuditRecorder
 from orkafin.core.settings import Settings
 from orkafin.infrastructure.database.audit import DatabaseAuditRecorder
 from orkafin.infrastructure.database.session import Database
+from orkafin.providers.base import ResponseProvider
+from orkafin.providers.factory import build_response_provider
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +22,7 @@ class ApplicationDependencies:
     adapter_registry: AdapterRegistry
     trusted_session_resolver: TrustedSessionResolver
     audit_recorder: AuditRecorder
+    response_provider: ResponseProvider
 
 
 def build_dependencies(
@@ -28,6 +31,7 @@ def build_dependencies(
     adapter_registry: AdapterRegistry | None = None,
     trusted_session_resolver: TrustedSessionResolver | None = None,
     audit_recorder: AuditRecorder | None = None,
+    response_provider: ResponseProvider | None = None,
 ) -> ApplicationDependencies:
     """Build the dependency container without global mutable state."""
     database = Database(settings.database_url)
@@ -48,4 +52,5 @@ def build_dependencies(
         adapter_registry=adapter_registry,
         trusted_session_resolver=(trusted_session_resolver or MissingTrustedSessionResolver()),
         audit_recorder=audit_recorder or DatabaseAuditRecorder(database),
+        response_provider=response_provider or build_response_provider(settings),
     )

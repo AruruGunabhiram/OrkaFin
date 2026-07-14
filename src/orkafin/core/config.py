@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     accept_incoming_request_ids: bool = True
     ai_provider: Literal["deterministic", "external"] = "deterministic"
     ai_provider_api_key: SecretStr | None = None
+    ai_provider_base_url: str = "https://api.openai.com/v1/chat/completions"
+    ai_provider_model: str = ""
+    ai_provider_timeout_seconds: float = Field(default=5.0, gt=0.0, le=30.0)
     confirmation_ttl_seconds: int = Field(default=300, ge=60, le=3600)
     fixture_mode: bool = True
     debug: bool = False
@@ -93,6 +96,12 @@ class Settings(BaseSettings):
             raise ValueError("OrkaFin Local V1 requires a SQLite database URL")
         if self.ai_provider == "external" and not self._has_provider_key():
             raise ValueError("an external AI provider requires a server-side API key")
+        if self.ai_provider == "external" and not self.ai_provider_model.strip():
+            raise ValueError("an external AI provider requires a model name")
+        if self.ai_provider == "external":
+            parsed_provider_url = urlparse(self.ai_provider_base_url)
+            if parsed_provider_url.scheme != "https" or not parsed_provider_url.netloc:
+                raise ValueError("an external AI provider requires an HTTPS base URL")
         if self.cors_allow_credentials and "*" in self.allowed_origins:
             raise ValueError("credentialed CORS cannot use a wildcard origin")
         if self.debug and self.environment not in {
