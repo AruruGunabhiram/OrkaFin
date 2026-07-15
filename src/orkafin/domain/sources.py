@@ -91,6 +91,7 @@ class RetrievedSource(DomainModel):
     title: ShortText
     safe_reference: SafeReference
     excerpt: SourceExcerpt
+    instruction_steps: tuple[ShortText, ...] = Field(default=(), max_length=25)
     verification_status: VerificationStatus
     relevance_score: float = Field(ge=0.0, le=1.0)
     relevance_reason: ShortText
@@ -119,4 +120,6 @@ class RetrievedSource(DomainModel):
             and self.uncertainty_reason is not None
         ):
             raise ValueError("verified sources must not carry uncertainty metadata")
+        if self.instruction_steps and self.verification_status is not VerificationStatus.VERIFIED:
+            raise ValueError("retrieved instruction steps require a verified source")
         return self

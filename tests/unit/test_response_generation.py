@@ -9,9 +9,14 @@ from orkafin.application.response_generation import (
     ResponseGenerationService,
 )
 from orkafin.application.retrieval import RetrievalIntent, RetrievalResult
+from orkafin.domain.catalog import VerificationStatus
+from orkafin.domain.sources import SourceType
 from orkafin.providers.contracts import (
     ApprovedProviderSource,
+    ClaimKind,
+    ClaimOutputField,
     DraftKind,
+    ProviderClaim,
     ProviderDraft,
     ProviderRequest,
     ResponseIntent,
@@ -44,8 +49,10 @@ def _provider_request() -> ProviderRequest:
         sources=(
             ApprovedProviderSource(
                 source_id="candidate_profile",
+                source_type=SourceType.PAGE_CATALOG,
                 title="Candidate profile",
                 excerpt="View the approved candidate profile.",
+                verification_status=VerificationStatus.PROVISIONAL,
             ),
         ),
         intent=ResponseIntent.EXPLAIN_PAGE,
@@ -102,6 +109,14 @@ def test_invented_feature_draft_is_downgraded_to_deterministic_guidance() -> Non
             kind=DraftKind.GROUNDED_GUIDANCE,
             text="Use quantum candidate matching from this page.",
             cited_source_ids=("candidate_profile",),
+            claims=(
+                ProviderClaim(
+                    kind=ClaimKind.PRODUCT_FACT,
+                    output_field=ClaimOutputField.TEXT,
+                    text="Use quantum candidate matching from this page.",
+                    source_ids=("candidate_profile",),
+                ),
+            ),
             template_id="external_claim",
         )
     )
@@ -116,11 +131,20 @@ def test_invented_feature_draft_is_downgraded_to_deterministic_guidance() -> Non
 
 def test_missing_or_unknown_provider_citations_fall_back_safely() -> None:
     for citations in ((), ("unknown_source",)):
+        claim_sources = citations or ("candidate_profile",)
         provider = _DraftProvider(
             ProviderDraft(
                 kind=DraftKind.GROUNDED_GUIDANCE,
                 text="Candidate profile guidance.",
                 cited_source_ids=citations,
+                claims=(
+                    ProviderClaim(
+                        kind=ClaimKind.PRODUCT_FACT,
+                        output_field=ClaimOutputField.TEXT,
+                        text="Candidate profile guidance.",
+                        source_ids=claim_sources,
+                    ),
+                ),
                 template_id="external_claim",
             )
         )
@@ -138,4 +162,5 @@ def test_provider_errors_fall_back_to_deterministic_safe_output() -> None:
     )
 
     assert response.content.kind == "grounded_guidance"
-    assert response.content.text.startswith("Candidate profile:")
+    assert response.content.text.startswith("Available approved guidance")
+    assert "limited" in response.content.text

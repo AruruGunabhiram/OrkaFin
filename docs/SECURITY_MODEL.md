@@ -1,6 +1,6 @@
 # Local V1 Security Model
 
-**Status:** Prompt 7 provisional local authorization policy; human review required before Prompt 8
+**Status:** Prompt 14 prompt/output controls implemented; human security review required before Prompt 15
 **Security posture:** Local pilot with explicit mocks; not production authentication
 
 ## Security objectives
@@ -149,14 +149,50 @@ deterministic app/page/version/permission filters before text matching. A docume
 cannot grant a permission, register an action, or override system behavior.
 
 User questions, candidate text, help excerpts, past messages, and provider output
-are all potentially adversarial data. The provider receives a bounded structured
-input containing only permitted context and retrieved excerpts. Candidate notes
-are absent by default. System rules and catalog/action definitions are supplied
-through typed code-controlled inputs, not concatenated instructions from records.
+are all potentially adversarial data. The Prompt Contract 1.0.0 renderer fixes a
+system/developer/user role hierarchy. It JSON-encodes untrusted values under
+explicit trust tags for verified context, approved source data, untrusted question,
+untrusted user-visible history, forbidden behavior, and the output allowlist.
+Retrieved or user text never enters system/developer messages.
 
-Response validation checks response type, cited source IDs, allowed feature/action
-IDs, and claims of execution. When grounding is absent or conflicting, return
-unavailable/refusal rather than fill gaps from model memory.
+The provider receives at most a 500-character question and 10 bounded source
+excerpts. Raw help Markdown is search-only; only its bounded summary and separately
+human-verified structured instruction steps can become provider evidence. Candidate
+fields are supplied only for the candidate-summary intent with a candidate-summary
+source bound to the already verified context. Notes, restricted fields, identity,
+permissions, candidate IDs, and raw adapter data remain absent.
+
+Conversation history is excluded by default unless server code marks an entry safe
+for provider use. The bounded policy drops system/developer roles and sensitive
+entries, then keeps at most 6 recent user/assistant messages, 300 characters each
+and 1,200 characters total. History remains untrusted continuity data and can never
+serve as grounding. Prompt 15 must obtain role and sensitivity metadata from the
+server-side conversation store, not the browser.
+
+Every grounded draft must supply structured claims covering its text and each step
+exactly once. Post-validation allowlists response kind, citations, feature IDs,
+action IDs, and receipt IDs; then checks category-specific evidence. Feature facts
+need feature sources, candidate facts need the adapter summary source, action
+suggestions need a current-context action definition, and steps must exactly match
+a verified source step. Question/history vocabulary is excluded from the secondary
+lexical grounding check.
+
+If explain-page retrieval has sources but none is verified, the provider intent is
+downgraded to `uncertainty`; non-verified citations under a normal grounded intent
+are rejected. Unverified or absent step lists remain unavailable rather than being
+converted into inferred instructions.
+
+A provider can never author an action-success response. Only the separate typed
+execution-result path can represent success, and that domain model requires a
+matching successful owning-adapter receipt. Missing or conflicting grounding,
+unknown IDs, unsupported steps, unauthorized actions, and provider errors use the
+same deterministic validator/fallback or a fixed unavailable response.
+
+These controls reduce known failure modes; they do not establish complete semantic
+entailment or prompt-injection prevention. An approved but malicious summary, model
+misclassification, history mislabeling, or novel misleading paraphrase remains a
+residual risk requiring catalog review, server-side classification, monitoring, and
+future adversarial evaluation.
 
 ## Optional action security
 
@@ -216,6 +252,10 @@ of audit access.
 - Missing or stale knowledge: identify information as unavailable.
 - Adapter unavailable/timeout: do not use client claims as fallback authority.
 - Provider unavailable: use deterministic fallback if grounded input is intact.
+- Provider draft uses unknown IDs, unsupported claims/steps, or action-success prose:
+  reject it and run the same bounded deterministic validator/fallback.
+- Candidate-summary source or standard fields are missing: return unavailable; do
+  not use notes, history, or a page/help source as substitute candidate evidence.
 - Malformed execution receipt: record failure/unknown; never claim success.
 - Internal exception: correlate by request ID, return a safe envelope, and keep
   secrets/traceback out of the response.
@@ -227,8 +267,10 @@ of audit access.
 | Identity boundary | Forged email/role/permission/action tests and missing-identity denial |
 | Record/field access | Cross-user record tests and field-by-field redaction tests |
 | Ownership | Migration/schema scan for candidate tables and adapter-only candidate fixture tests |
-| Prompt injection | Adversarial user/help/note/history fixtures; no policy/action change |
-| Grounding | Unknown feature/source rejection and cited revision checks |
+| Prompt injection | Trust-tagged user/help/note/history fixtures; hidden/sensitive exclusion; no policy/action change |
+| Grounding | Claim coverage, candidate-source mapping, invented feature, fake citation, unauthorized action, unsupported-step tests |
+| Success honesty | Fabricated-success rejection plus typed adapter-receipt invariants |
+| Input bounds | 500-character question rejection and 6/300/1,200 history minimization tests |
 | Provider independence | Full tests and demo with no external key/network |
 | CORS | Allowed-origin and disallowed/wildcard-origin tests |
 | Logging | Captured-log tests for tokens, notes, hidden fields, and tracebacks |
@@ -242,3 +284,8 @@ production identity, remote hosting, multi-user external access, an audit UI,
 candidate-note processing, durable candidate caching, a new provider data policy,
 new executable actions, or credentialed cross-origin browser access. No local test
 result may be presented as evidence that those production risks are solved.
+
+The Prompt 14 human checkpoint must explicitly accept the Prompt Contract 1.0.0
+shape, conservative false-negative behavior, history-classification obligation,
+catalog-poisoning risk, external-provider gaps, and the finite scope of red-team
+fixtures before Prompt 15 exposes an assistant endpoint.

@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 from pydantic import SecretStr, ValidationError
 
 from orkafin.providers.contracts import ProviderDraft, ProviderRequest
+from orkafin.providers.prompts import build_prompt_messages
 
 
 class ProviderError(RuntimeError):
@@ -89,19 +90,7 @@ class OpenAICompatibleResponseProvider:
             "model": self._model,
             "temperature": 0,
             "response_format": {"type": "json_object"},
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Return only a JSON provider draft. Do not claim permissions, actions, "
-                        "features, records, or facts not present in the supplied payload."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(request.model_dump(mode="json"), sort_keys=True),
-                },
-            ],
+            "messages": build_prompt_messages(request),
         }
 
 

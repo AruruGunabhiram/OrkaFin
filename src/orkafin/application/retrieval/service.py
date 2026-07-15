@@ -321,6 +321,7 @@ class DeterministicRetrievalService:
             title=ranked.candidate.title,
             safe_reference=provenance.safe_reference,
             excerpt=ranked.candidate.excerpt,
+            instruction_steps=item.instruction_steps,
             verification_status=provenance.verification_status,
             relevance_score=min(ranked.raw_score / 300, 1.0),
             relevance_reason=ranked.reason,
@@ -381,7 +382,9 @@ def _help_candidate(item: HelpArticle) -> _Candidate:
         source_id=item.article_id,
         source_type=SourceType.HELP_ARTICLE,
         title=item.title,
-        excerpt=_safe_excerpt(item.summary, item.content),
+        # Raw Markdown remains searchable controlled data, but only the separately
+        # bounded summary and verified structured steps may cross the provider boundary.
+        excerpt=item.summary,
         identifiers=(item.article_id, item.title),
         aliases=item.aliases,
         tags=item.tags,
@@ -402,13 +405,6 @@ def _help_candidate(item: HelpArticle) -> _Candidate:
             )
         ),
     )
-
-
-def _safe_excerpt(summary: str, content: str) -> str:
-    """Bound article excerpts; source text remains data and is never interpreted."""
-    compact = " ".join(content.split())
-    suffix = compact[:360].rstrip()
-    return f"{summary} {suffix}"[:500].rstrip()
 
 
 def _meaningful_tokens(value: str) -> tuple[str, ...]:

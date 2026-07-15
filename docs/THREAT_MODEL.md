@@ -1,6 +1,6 @@
 # Local V1 Threat Model
 
-**Status:** Frozen for Prompt 1 human review  
+**Status:** Updated for Prompt 14; human security review required before Prompt 15
 **Method:** Asset and trust-boundary review with abuse cases and testable controls
 
 ## Scope and assets
@@ -96,18 +96,27 @@ record, invent a feature, call an action, expose secrets, or mislabel success.
 **Impact:** Data exposure, unsafe guidance, action abuse, or loss of trust.
 
 **Controls:** Treat all content as data; exclude candidate notes from provider input
-by default; load only schema-valid approved knowledge; keep permission/action
-definitions in code-controlled typed structures; retrieve minimal excerpts;
-validate source/feature/action claims; providers cannot call adapters; fail closed
-when grounding is missing.
+by default; keep permission/action definitions in code-controlled typed structures;
+and separate system/developer templates from JSON-encoded trust-tagged data. Raw
+help Markdown is search-only; only bounded summaries and human-verified structured
+steps can become provider evidence. History minimization drops hidden roles and
+sensitive entries and never treats retained history as evidence. Every grounded
+output field requires a structured claim; server allowlists constrain response,
+source, feature, and action IDs; category checks bind candidate facts to the adapter
+summary source and steps to verified source steps. Providers cannot call adapters
+or author action-success output. Unsafe provider output runs the same deterministic
+validator/fallback and ultimately becomes unavailable.
 
 **Verification:** Place injection strings in user questions, help fields, candidate
 notes, and previous assistant messages. Assert no permission changes, no hidden
 marker appears, no unlisted source/action is returned, and no action state exists.
 
-**Residual risk/change trigger:** Generative output may still be misleading. Any
-candidate-note use, broader corpus, tool-calling provider, or autonomous planning
-requires a new design and adversarial evaluation.
+**Residual risk/change trigger:** Claim mapping and lexical checks do not prove full
+semantic entailment. A misleading paraphrase, malicious approved summary, poisoned
+retrieval ranking, or server-misclassified history item may still affect output.
+Finite fixtures do not cover novel attacks. Any candidate-note use, broader corpus,
+client-labelled history, tool-calling provider, or autonomous planning requires a
+new design and adversarial evaluation.
 
 ### T-04 — Action parameter or target tampering
 
@@ -158,17 +167,23 @@ exception to friendly success text.
 **Impact:** User acts on false state, duplicates changes, and audit records diverge
 from OrkaATS.
 
-**Controls:** Providers have no execution authority; a success domain object
-requires a valid adapter receipt; validate owner/action/target/request/idempotency/
-timestamp/outcome fields; use explicit failed versus unknown states; never blindly
-retry ambiguous failures; reconcile through the owning adapter when supported.
+**Controls:** Providers have no execution authority and Prompt 14 rejects both
+structured `action_success` claims and narrowly recognized success prose. The
+provider receipt allowlist is empty in V1; a model cannot turn a plausible receipt
+ID into an attestation. A success domain object exists only in the separate action
+path and requires a valid adapter receipt; validate owner/action/target/request/
+idempotency/timestamp/outcome fields; use explicit failed versus unknown states;
+never blindly retry ambiguous failures; reconcile through the owning adapter when
+supported.
 
 **Verification:** Provider success prose without receipt, timeout before/after mock
 effect, malformed/mismatched receipt, adapter exception, duplicate retry, and
 audit/response consistency tests.
 
-**Residual risk/change trigger:** Real Apps Script must define idempotent execution
-and receipt/reconciliation semantics before writes can be enabled.
+**Residual risk/change trigger:** The secondary success-phrase recognizer is not a
+semantic classifier and may miss novel wording; the primary protection is that no
+provider claim category can report success. Real Apps Script must define idempotent
+execution and receipt/reconciliation semantics before writes can be enabled.
 
 ### T-07 — Secrets or sensitive content in frontend code and logs
 
@@ -246,14 +261,17 @@ action proposals.
 **Controls:** Version-controlled reviewed catalogs; strict schema and stable IDs;
 status/owner/revision metadata; cross-reference validation; deterministic filtering;
 actions defined in a separate explicit catalog; sources returned with responses;
-stale/missing content yields unavailable status.
+raw help bodies excluded from provider evidence; only verified structured steps may
+be emitted as steps; stale/missing content yields unavailable status.
 
 **Verification:** Invalid permissions, missing owners/revisions, duplicate IDs,
 broken references, disabled entries, injected instructions, and unknown actions
 fail knowledge validation/retrieval tests.
 
-**Residual risk/change trigger:** External document ingestion or non-engineer
-publishing requires signed/approved ingestion workflow, provenance, rollback, and
+**Residual risk/change trigger:** Schema validation cannot decide whether an
+approved summary is truthful or malicious, and raw help text can still influence
+retrieval ranking. External document ingestion or non-engineer publishing requires
+signed/approved ingestion workflow, provenance, content review, rollback, and
 freshness policy.
 
 ## Cross-cutting verification schedule
@@ -272,3 +290,8 @@ location, browser origin, or action changes. Record newly accepted residual risk
 in `docs/DECISIONS.md` and create/supersede an ADR when the architecture boundary
 changes. A passing local suite is not sufficient evidence for a production threat
 model.
+
+Before Prompt 15, the human reviewer must decide whether to accept the remaining
+semantic-grounding, catalog-poisoning, history-classification, external-provider,
+and red-team-coverage risks documented above. Until that review is recorded, the
+assistant endpoint checkpoint is not passed.

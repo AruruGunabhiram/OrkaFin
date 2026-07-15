@@ -86,12 +86,16 @@ score divided by 300 and capped at 1.0. Weights are not a probability or an
 unmeasured quality claim.
 
 The result returns the existing typed `RetrievedSource`: stable source ID and
-type, app ID, content version, revision, title, bounded safe excerpt,
+type, app ID, content version, revision, title, bounded safe excerpt, any separately
+verified structured instruction steps,
 `catalog://` or `knowledge://` reference, verification status, score, reason,
 and the permission requirements that were checked. Provisional or needs-review
 items include `uncertainty_reason`; in particular, step-by-step help without
 verified instruction steps says that no verified steps are available. Controlled
-source text remains data, never system instructions or executable policy.
+source text remains data, never system instructions or executable policy. Prompt
+14 narrows help excerpts to the article's bounded summary; raw Markdown remains
+searchable for deterministic matching but cannot become provider evidence. This
+minimizes injection exposure but does not replace catalog content review.
 
 Intent labels are `explain_this_page`, `what_can_i_do_here`, `feature_question`,
 `step_by_step_help`, and `unknown_feature`. An unknown or permission-filtered

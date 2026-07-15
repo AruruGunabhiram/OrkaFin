@@ -43,6 +43,14 @@ class _OfflineTransport:
                                 "kind": "grounded_guidance",
                                 "text": "Candidate profile guidance.",
                                 "cited_source_ids": ["candidate_profile"],
+                                "claims": [
+                                    {
+                                        "kind": "product_fact",
+                                        "output_field": "text",
+                                        "text": "Candidate profile guidance.",
+                                        "source_ids": ["candidate_profile"],
+                                    }
+                                ],
                                 "template_id": "external_mock",
                             }
                         )
@@ -118,7 +126,9 @@ def test_provider_payload_excludes_secrets_notes_hidden_fields_and_identity() ->
     )
     payload = provider_request.model_dump_json()
 
-    assert "Safe Candidate" in payload
+    # Candidate fields are additionally intent- and source-bound; page guidance
+    # does not need them even though the resolved context contains a summary.
+    assert "Safe Candidate" not in payload
     assert "PRIVATE-CANDIDATE-NOTE" not in payload
     assert "HIDDEN-FIELD@example.invalid" not in payload
     assert "CAND-1001" not in payload
