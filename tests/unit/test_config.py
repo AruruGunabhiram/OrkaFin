@@ -45,3 +45,8 @@ def test_wildcard_credentialed_cors_is_rejected() -> None:
 def test_production_environment_is_rejected_for_the_local_service() -> None:
     with pytest.raises(ValidationError, match="cannot run in the production"):
         Settings(environment=AppEnvironment.PRODUCTION)
+
+
+def test_local_fixture_subject_requires_fixture_mode() -> None:
+    with pytest.raises(ValidationError, match="requires fixture_mode"):
+        Settings(fixture_mode=False, local_fixture_subject="limited_viewer")

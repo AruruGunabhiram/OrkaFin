@@ -55,6 +55,43 @@ Expected response:
 {"status":"ok","service":"orkafin","version":"v1"}
 ```
 
+## Local assistant widget demo
+
+The reusable, framework-free widget is served at
+`http://127.0.0.1:8000/demo`. It uses the same origin as the API, so the default
+loopback CORS policy is sufficient for the demo. It is a synthetic local harness,
+not an Apps Script deployment.
+
+The API fails closed unless a trusted session resolver is configured. To run the
+interactive synthetic fixture harness, set the fixture subject on the **server**
+when starting it (the browser never supplies identity, role, permissions, or a
+secret):
+
+```bash
+ORKAFIN_LOCAL_FIXTURE_SUBJECT=limited_viewer uvicorn orkafin.main:app --reload
+```
+
+Then open `http://127.0.0.1:8000/demo`. Choose a page and synthetic candidate,
+open **Ask OrkaFin**, and use a suggested prompt or enter a question. `CAND-1099`
+is intentionally useful for checking a safe denied response. Valid synthetic
+fixture subjects are defined in `fixtures/users.yaml`; the local demo does not
+provide a browser identity switcher.
+
+Manual smoke checklist:
+
+1. Confirm the panel can be opened with the launcher and closed with Escape.
+2. Select `Candidate profile` and `CAND-1042`, then send **Summarize this candidate**.
+3. Confirm sources and the request ID render when the response provides them.
+4. Select `CAND-1099` and confirm denial is displayed without a fabricated summary.
+5. Stop the local service, submit a question, and confirm the offline message; restart it.
+6. Use **Reset conversation** and verify the response area returns to its empty state.
+
+For the lightweight frontend checks, run:
+
+```bash
+node --test tests/web/widget.test.mjs
+```
+
 ## Dependency policy
 
 `pyproject.toml` is the single dependency and tooling configuration source.
@@ -77,6 +114,7 @@ to the current Python interpreter.
 - `ORKAFIN_AI_PROVIDER_API_KEY`
 - `ORKAFIN_CONFIRMATION_TTL_SECONDS`
 - `ORKAFIN_FIXTURE_MODE`
+- `ORKAFIN_LOCAL_FIXTURE_SUBJECT`
 - `ORKAFIN_DEBUG`
 
 Never commit `.env` or real provider credentials. Browser-provided identity and

@@ -267,6 +267,27 @@ loopback FastAPI process. A browser on the developer machine may reach loopback,
 but that is a distinct untrusted-client path subject to CORS and browser
 mixed-content policy.
 
+## Local widget embed boundary
+
+The reusable widget is a plain HTML/CSS/JavaScript component served by the local
+demo at `/demo`; its assets are under `src/orkafin/web/assets`. Its initialization
+API is `mountAssistantWidget(root, { context, transport })`, returning `open`,
+`close`, `setContext`, `reset`, and `destroy`. `context` contains only the
+untrusted `ClientContextHint` shape: app ID, page, and optional selected entity.
+
+The default transport is created with `createAssistantTransport({ baseUrl,
+fetchFn, timeoutMs })` and calls `POST /api/v1/assistant/queries`. An Apps Script
+host may replace that transport only after its reviewed integration provides the
+required authenticated topology. It must not insert a server credential, role,
+permission, or user identity into widget configuration or the query payload.
+
+The local page uses same-origin assets and API calls. A separately hosted local
+host must be listed exactly in `ORKAFIN_ALLOWED_ORIGINS`; wildcard CORS is not
+supported. HTTPS Apps Script pages may be blocked from calling an HTTP loopback
+service due to mixed content. The browser-local harness can use the explicit
+server-side `ORKAFIN_LOCAL_FIXTURE_SUBJECT` setting with synthetic fixtures only;
+it is not browser authentication and does not make Apps Script embedding complete.
+
 ## Gates before any live candidate data
 
 All of these are mandatory before replacing synthetic data:

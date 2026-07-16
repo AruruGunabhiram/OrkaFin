@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OrkaFin local assistant demo</title>
+    <link rel="stylesheet" href="/_orkafin/static/widget.css">
+  </head>
+  <body>
+    <main class="demo-shell">
+      <p class="eyebrow">OrkaFin local test mode</p>
+      <h1>OrkaATS candidate workspace</h1>
+      <p class="demo-intro">
+        This synthetic harness sends navigation and candidate selection as untrusted hints.
+        The server resolves fixture identity and permissions; this page has no permission controls.
+      </p>
+      <aside class="demo-notice" aria-label="Local test mode notice">
+        Configure <code>ORKAFIN_LOCAL_FIXTURE_SUBJECT</code> on the server to enable a synthetic
+        fixture identity. This browser never sends a role, permission, or secret.
+      </aside>
+      <section class="demo-controls" aria-labelledby="demo-context-title">
+        <h2 id="demo-context-title">Untrusted page context</h2>
+        <label for="demo-page">Current page</label>
+        <select id="demo-page">
+          <option value="candidate_profile">Candidate profile</option>
+          <option value="candidate_directory">Candidate directory</option>
+          <option value="dashboard">Dashboard</option>
+          <option value="pipeline">Pipeline</option>
+        </select>
+        <label for="demo-candidate">Selected synthetic candidate</label>
+        <select id="demo-candidate">
+          <option value="CAND-1042">CAND-1042</option>
+          <option value="CAND-1001">CAND-1001</option>
+          <option value="CAND-1099">CAND-1099 (access may be denied)</option>
+          <option value="">No candidate selected</option>
+        </select>
+      </section>
+    </main>
+    <div id="orkafin-assistant" data-api-base-url=""></div>
+    <script type="module" src="/_orkafin/static/demo.js"></script>
+  </body>
+</html>

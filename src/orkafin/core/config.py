@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     ai_provider_timeout_seconds: float = Field(default=5.0, gt=0.0, le=30.0)
     confirmation_ttl_seconds: int = Field(default=300, ge=60, le=3600)
     fixture_mode: bool = True
+    local_fixture_subject: str | None = None
     debug: bool = False
 
     @field_validator("log_level", mode="before")
@@ -110,6 +111,8 @@ class Settings(BaseSettings):
             AppEnvironment.TEST,
         }:
             raise ValueError("debug mode is limited to local development environments")
+        if self.local_fixture_subject is not None and not self.fixture_mode:
+            raise ValueError("a local fixture subject requires fixture_mode=true")
         return self
 
     def _has_provider_key(self) -> bool:

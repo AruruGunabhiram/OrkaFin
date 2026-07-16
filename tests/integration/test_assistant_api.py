@@ -128,6 +128,22 @@ def test_candidate_summary_is_redacted_grounded_and_not_persisted(tmp_path: Path
     assert [record.event_type for record in records] == ["candidate_read"]
 
 
+def test_suggested_candidate_summary_phrase_requests_the_verified_summary(tmp_path: Path) -> None:
+    application, _ = build_context_application(tmp_path / "suggested-candidate.db")
+
+    response = asyncio.run(
+        _request(
+            application,
+            "POST",
+            "/api/v1/assistant/queries",
+            json=_assistant_body("Summarize this candidate", candidate_id="CAND-1042"),
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.json()["content"]["kind"] == "verified_fact"
+
+
 def test_unknown_question_is_honestly_unavailable_and_persisted(tmp_path: Path) -> None:
     application, _ = build_context_application(tmp_path / "unknown.db")
 

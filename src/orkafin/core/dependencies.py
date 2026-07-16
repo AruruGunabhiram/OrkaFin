@@ -5,7 +5,11 @@ from pathlib import Path
 
 from orkafin.adapters.orka_ats import MOCK_ORKA_ATS_APP_ID, MockOrkaATSAdapter
 from orkafin.adapters.registry import AdapterRegistration, AdapterRegistry
-from orkafin.application.auth import MissingTrustedSessionResolver, TrustedSessionResolver
+from orkafin.application.auth import (
+    MissingTrustedSessionResolver,
+    StaticTrustedSessionResolver,
+    TrustedSessionResolver,
+)
 from orkafin.application.context import AuditRecorder
 from orkafin.core.settings import Settings
 from orkafin.infrastructure.database.audit import DatabaseAuditRecorder
@@ -54,7 +58,14 @@ def build_dependencies(
         settings=settings,
         database=database,
         adapter_registry=adapter_registry,
-        trusted_session_resolver=(trusted_session_resolver or MissingTrustedSessionResolver()),
+        trusted_session_resolver=(
+            trusted_session_resolver
+            or (
+                StaticTrustedSessionResolver(settings.local_fixture_subject)
+                if settings.local_fixture_subject is not None
+                else MissingTrustedSessionResolver()
+            )
+        ),
         audit_recorder=audit_recorder or DatabaseAuditRecorder(database),
         response_provider=response_provider or build_response_provider(settings),
         knowledge_index=knowledge_index or load_knowledge(_default_knowledge_root()),

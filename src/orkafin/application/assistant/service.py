@@ -212,7 +212,12 @@ def _asks_for_candidate_summary(question: str) -> bool:
     normalized = normalize_question(question)
     return any(
         term in normalized
-        for term in ("candidate summary", "summarize candidate", "candidate details")
+        for term in (
+            "candidate summary",
+            "summarize candidate",
+            "summarize this candidate",
+            "candidate details",
+        )
     )
 
 

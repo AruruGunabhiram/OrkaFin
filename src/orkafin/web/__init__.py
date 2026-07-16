@@ -1,1 +1,1 @@
-"""Framework-free web asset boundary; UI implementation is deferred."""
+"""Framework-free static assets for the local OrkaFin assistant harness."""
