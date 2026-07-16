@@ -109,7 +109,11 @@ class TrustedContextResolutionService:
         self._clock = clock or (lambda: datetime.now(UTC))
 
     async def resolve(
-        self, *, client_hint: ClientContextHint, request_id: RequestId
+        self,
+        *,
+        client_hint: ClientContextHint,
+        request_id: RequestId,
+        include_candidate_summary: bool = True,
     ) -> ResolvedPageContext:
         """Resolve identity, page, authorization, actions, and an allowed candidate summary."""
         app_id = client_hint.app_id
@@ -224,7 +228,11 @@ class TrustedContextResolutionService:
         candidate_summary: CandidateSummary | None = None
         candidate_response_id: str | None = None
         selected_entity = application_context.selected_entity
-        if selected_entity is not None and selected_entity.entity_type == "candidate":
+        if (
+            include_candidate_summary
+            and selected_entity is not None
+            and selected_entity.entity_type == "candidate"
+        ):
             record_decision = self._permission_evaluator.check_record(
                 authorization,
                 record=selected_entity,

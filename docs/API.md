@@ -235,19 +235,177 @@ The minimized internal audit details for the examples above are:
 }
 ```
 
-## Prompt 11 human review checkpoint
+## Assistant and conversation API
 
-Prompt 12 must not begin until a human reviewer approves or requests changes to:
+The local demo base URL is `http://127.0.0.1:8000`. Browser clients may use
+the explicit loopback origins configured by `ORKAFIN_ALLOWED_ORIGINS` (the
+defaults are `http://127.0.0.1:8000` and `http://localhost:8000`). Requests may
+send a canonical UUID in `X-Request-ID`; the service otherwise generates one and
+always returns it in the response header and response envelope.
 
-- the separation between the untrusted request and trusted session subject;
-- the top-level and per-component trust/source labels;
-- the limited-viewer redacted candidate example;
-- the 401/403/404/422/503 response codes and non-disclosing messages; and
-- the audit target reference plus minimized detail fields described above.
+All browser-supplied context is a hint. There is no user, email, role,
+permission, workspace, or action field in any assistant request. The server-side
+trusted session resolver and owning-application adapter establish those facts for
+each call.
 
-| Review field | Value |
-|---|---|
-| Reviewer | Pending |
-| Review date | Pending |
-| Outcome | Pending: approve, approve with conditions, or request changes |
-| Conditions/changes | Pending |
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/health` | Local process health. |
+| `GET` | `/api/v1/apps/{app_id}/metadata` | Adapter-owned public app metadata. |
+| `GET` | `/api/v1/apps/{app_id}/features` | Controlled product catalog; not a per-user availability grant. |
+| `POST` | `/api/v1/contexts:resolve` | Resolve a browser hint into ephemeral trusted context. |
+| `POST` | `/api/v1/assistant/queries` | Execute one grounded assistant turn. |
+| `GET` | `/api/v1/conversations/{conversation_id}?app_id={app_id}&page={page}` | Read a conversation after revalidating its verified owner and workspace. |
+
+There is deliberately no audit-read endpoint.
+
+### `POST /api/v1/assistant/queries`
+
+Request fields are bounded: `question` is a trimmed 1–500 character string;
+`context` is a `ClientContextHint`; and `conversation_id` is optional. Omit the
+conversation ID to create an OrkaFin-owned conversation. A supplied ID is never
+trusted: it is checked against the verified user and workspace before loading its
+history. Hidden prompts, provider payloads, secrets, and candidate values are
+never persisted.
+
+```json
+{
+  "question": "Explain this page.",
+  "context": {
+    "app_id": "orka_ats",
+    "page": "candidate_profile"
+  }
+}
+```
+
+Grounded success includes the response, request, conversation, grounding, and
+approved source references. Source records are returned only when the response
+cites them.
+
+```json
+{
+  "schema_version": "v1",
+  "response_id": "response:…",
+  "conversation_id": "conversation:…",
+  "request_id": "00000000-0000-4000-8000-000000000815",
+  "grounding_status": "grounded",
+  "content": {
+    "kind": "grounded_guidance",
+    "text": "Candidate profile: Present a permission-filtered provisional view of one candidate.",
+    "steps": [],
+    "source_ids": ["candidate_profile"]
+  },
+  "sources": [{"source_id": "candidate_profile", "source_type": "page_catalog"}],
+  "created_at": "2026-07-13T20:00:00Z"
+}
+```
+
+The supported V1 questions are page explanations, feature questions,
+what-can-I-do-here guidance, candidate-summary questions, and step-by-step or
+next-step guidance when verified instructions exist. Catalog content currently
+marked provisional never becomes verified steps merely because it is retrieved;
+the response is honestly unavailable when verified steps are absent.
+
+Candidate summaries are requested only for recognized candidate-summary queries
+with a selected candidate. The adapter returns only permitted fields. Standard
+visible fields may appear in the immediate response; the persisted assistant
+message is a non-sensitive acknowledgement rather than a copy of candidate data.
+
+```json
+{
+  "question": "Give me the candidate summary.",
+  "context": {
+    "app_id": "orka_ats",
+    "page": "candidate_profile",
+    "selected_entity": {"type": "candidate", "id": "CAND-1042"}
+  }
+}
+```
+
+An unknown feature is a successful transport call with an explicit unavailable
+answer, not a fabricated capability:
+
+```json
+{
+  "grounding_status": "unavailable",
+  "content": {
+    "kind": "unavailable_information",
+    "text": "Approved information is not available for this request.",
+    "reason_code": "source_missing"
+  },
+  "sources": []
+}
+```
+
+### Conversation and application responses
+
+`GET /api/v1/conversations/{conversation_id}` requires `app_id` and `page` query
+parameters so the service can re-resolve trusted identity and workspace. It
+returns `ConversationResponse`:
+
+```json
+{
+  "conversation": {
+    "conversation_id": "conversation:…",
+    "owner_user_id": "mock-user-limited-viewer",
+    "workspace": {"workspace_id": "workspace_recruiting_alpha", "app_id": "orka_ats"},
+    "status": "active"
+  },
+  "messages": [
+    {"role": "user", "content": "Explain this page."},
+    {"role": "assistant", "content": "Candidate profile: …", "source_ids": ["candidate_profile"]}
+  ]
+}
+```
+
+An ID belonging to another verified user or workspace returns a non-disclosing
+`404 domain_error` response. The app metadata endpoint returns `AppMetadata`.
+The feature endpoint returns `FeatureCatalogResponse` with `app` and controlled
+catalog `features`; it must not be interpreted as the current user's permission
+result.
+
+### Failure examples
+
+No context is a validation failure:
+
+```json
+{
+  "code": "validation_error",
+  "message": "Request validation failed.",
+  "details": {"fields": ["body.context"]}
+}
+```
+
+An unverified trusted session is refused before a conversation or response is
+created:
+
+```json
+{
+  "code": "identity_unverified",
+  "message": "Sign-in verification is required before this information can be shown."
+}
+```
+
+A selected candidate that the adapter denies is not described as missing or
+successful:
+
+```json
+{
+  "code": "candidate_access_denied",
+  "message": "The requested candidate information is not available for the verified account."
+}
+```
+
+Adapter outage or timeout returns no assistant response and no fabricated
+conversation/message:
+
+```json
+{
+  "code": "adapter_unavailable",
+  "message": "A required dependency is currently unavailable. No application data was returned."
+}
+```
+
+All error envelopes also include `schema_version` and `request_id`.
