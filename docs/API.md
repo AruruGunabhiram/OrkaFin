@@ -260,6 +260,9 @@ each call.
 | `POST` | `/api/v1/action-proposals/{proposal_id}/confirmations` | Accept or reject intent; acceptance still performs no write. |
 | `POST` | `/api/v1/action-proposals/{proposal_id}:execute` | Revalidate and execute the confirmed action once through the mock adapter. |
 | `POST` | `/api/v1/assistant/queries` | Execute one grounded assistant turn. |
+| `POST` | `/api/v1/events` | Record one allowlisted, permission-bound meaningful product event. |
+| `POST` | `/api/v1/recommendations:evaluate` | Evaluate deterministic source-backed recommendation rules. |
+| `POST` | `/api/v1/feedback` | Record feedback for an owned recommendation and optional preference. |
 | `GET` | `/api/v1/conversations/{conversation_id}?app_id={app_id}&page={page}` | Read a conversation after revalidating its verified owner and workspace. |
 
 There is deliberately no audit-read endpoint.
@@ -396,6 +399,63 @@ answer, not a fabricated capability:
   "sources": []
 }
 ```
+
+### Events, recommendations, and feedback
+
+`POST /api/v1/events` accepts only `app_opened`, `page_viewed`, or
+`candidate_selected` with a `ClientContextHint` and bounded metadata. The server
+resolves identity/context and writes a minimized OrkaFin event; callers cannot
+supply actor, workspace, permission, or arbitrary event types.
+
+`POST /api/v1/recommendations:evaluate` accepts only the context hint. It records
+a bounded page interaction, evaluates reviewed catalog rules against verified
+permissions/features/recent events, and returns source references. It does not
+open the widget, make an action available, or infer permission from a catalog.
+
+```json
+{
+  "context": {"app_id": "orka_ats", "page": "recruitment_pipeline"}
+}
+```
+
+The synthetic Local V1 rule can return:
+
+```json
+{
+  "preference": "enabled",
+  "recommendations": [{
+    "rule_id": "review_recruitment_pipeline",
+    "title": "Review the recruitment pipeline",
+    "feature_id": "candidate_stage_tracking",
+    "source_references": [
+      "catalog://orka_ats/recommendations/review_recruitment_pipeline",
+      "catalog://orka_ats/features/candidate_stage_tracking"
+    ]
+  }],
+  "suppressed_rule_ids": []
+}
+```
+
+`POST /api/v1/feedback` accepts a recommendation ID returned for the same verified
+user/workspace, one of `helpful`, `not_helpful`, `accepted`, or `dismissed`, a
+fresh context hint, an optional bounded comment, and optional preference
+`enabled`, `reduced`, or `disabled`. Recommendation ownership is rechecked.
+Accepted rules do not repeat when recurrence is disabled; a dismissed rule is
+suppressed for its configured interval. Free text is content-redacted before
+persistence.
+
+```json
+{
+  "recommendation_id": "recommendation:synthetic-example",
+  "feedback_type": "helpful",
+  "context": {"app_id": "orka_ats", "page": "recruitment_pipeline"}
+}
+```
+
+There is no public endpoint for events, audit history, candidate export, or raw
+adapter payloads. A local operator can inspect bounded redacted event/audit rows
+with `python scripts/inspect_local_activity.py`; see
+[`LOCAL_SETUP.md`](LOCAL_SETUP.md#inspect-local-events-and-audits).
 
 ### Conversation and application responses
 

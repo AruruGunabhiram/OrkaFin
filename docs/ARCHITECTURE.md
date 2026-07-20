@@ -1,6 +1,6 @@
 # Local V1 Architecture
 
-**Status:** Prompt 1 boundary retained; Prompt 19 mock-only execution extension implemented
+**Status:** Local V1 handoff complete; final human acceptance pending
 
 ## Architectural intent
 
@@ -70,9 +70,9 @@ The mock adapter and fixture identity resolver simulate the owning application
 boundary for tests. A local mock identity is not production authentication. A
 successful mock flow proves only local contract behavior.
 
-## Planned modules in one service
+## Implemented modules in one service
 
-Prompt 2 may use package name `orkafin` and a `src/orkafin` layout:
+Local V1 uses package name `orkafin` and a `src/orkafin` layout:
 
 | Module | Responsibility | Must not do |
 |---|---|---|
@@ -130,7 +130,7 @@ authorization invalidation, and retention.
 7. The API returns a source-aware response, refusal, or unavailable result. It
    never represents guidance as an executed action.
 
-## Prompt 11 trusted context resolution flow
+## Trusted context resolution flow
 
 `POST /api/v1/contexts:resolve` is implemented as thin HTTP routing over
 `TrustedContextResolutionService`; authorization policy remains outside the route.
@@ -162,7 +162,7 @@ audit construction. Unknown apps/pages are distinct 404 client/configuration
 errors; adapter unavailability and timeout remain 503. See [`API.md`](API.md) for
 the reviewed shape and safe error codes.
 
-## Confirmed-action request flow (one Prompt 19 mock action implemented)
+## Confirmed-action request flow (one mock action implemented)
 
 ```mermaid
 sequenceDiagram

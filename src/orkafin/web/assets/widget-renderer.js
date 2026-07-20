@@ -66,7 +66,13 @@ function renderRecommendation(document, container, recommendation, notice, onFee
     appendText(document, container, "p", "assistant-recommendation-source", `Source: ${recommendation.source_references.join(", ")}`);
   }
   const controls = element(document, "div", "assistant-recommendation-controls");
-  [["accepted", "Accept"], ["dismissed", "Dismiss"], ["dismissed", "Disable recommendations", "disabled"]].forEach(([type, label, preference]) => {
+  [
+    ["helpful", "Helpful"],
+    ["not_helpful", "Not helpful"],
+    ["accepted", "Accept"],
+    ["dismissed", "Dismiss"],
+    ["dismissed", "Disable recommendations", "disabled"],
+  ].forEach(([type, label, preference]) => {
     const button = element(document, "button", "assistant-recommendation-action", label);
     button.type = "button";
     button.addEventListener("click", () => onFeedback(type, preference));

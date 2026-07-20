@@ -1,14 +1,14 @@
 # Local V1 Decisions, Assumptions, and Open Questions
 
-**Status:** Prompt 19 single-action mock execution extension implemented
+**Status:** Prompt 21 Local V1 handoff complete; final human acceptance pending
 **Last updated:** 2026-07-19
 
 ## How to use this record
 
 This file is the index of V1 architectural decisions and unresolved product/policy
-choices. The linked ADRs explain high-impact decisions in depth. No later prompt
+choices. The linked ADRs explain high-impact decisions in depth. No later change
 may silently replace these boundaries. Record approval, rejection, or requested
-changes in the review record below before Prompt 2.
+changes in the final human acceptance record below before expanding V1.
 
 Precedence for Local V1 is:
 
@@ -59,6 +59,7 @@ The architecture decision records are:
 | D-027 | Mock, browser-local, controlled HTTPS tunnel, and later hosted API are distinct integration modes. Browser claims remain untrusted; Apps Script server-side code cannot reach a developer laptop through `localhost`; a tunnel is synthetic-data-only temporary testing, not production architecture. | Prevents local connectivity techniques from being mistaken for identity proof, deployment, or an approved live data path. |
 | D-028 | Prompt 18 enables proposal and one-time confirmation for `candidate.update_start_date` version `1.0.0` in mock mode only. Confirmation may become execution-ready but execution remains disabled pending a separate Prompt 19 approval. | Resolves Q-006 only for the preparation checkpoint without broadening OrkaFin write authority. |
 | D-029 | Prompt 19 executes only `candidate.update_start_date` version `1.0.0` through exact adapter `mock_orka_ats` after a separate click, fresh trusted checks, one-time reservation, adapter revalidation, idempotency, receipt validation, and complete audit. Timeout/unavailable/malformed outcomes are `unknown` and never blindly retried. | Proves the local architecture using isolated synthetic adapter state; it does not approve or prove Apps Script, Google Sheet, or real candidate execution. |
+| D-030 | Local audit/event inspection is an operator-only read-only CLI, not a public API route. The checked demo launcher runs only the documented deterministic, loopback, fixture, SQLite configuration. | Makes reproducibility and local review visible without widening browser/audit exposure or enabling an external provider. |
 
 The Prompt 4 field shapes, module paths, ID patterns, and handling table are in
 [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md). These entries clarify existing boundaries;
@@ -67,15 +68,16 @@ action.
 
 ## Repository layout assumption for Prompt 2
 
-The approved starting assumption is one package under `src/orkafin` with internal
+The approved implementation is one package under `src/orkafin` with internal
 areas for `api`, `core`, `domain`, `application`, `adapters`, `infrastructure`,
 `knowledge`, `providers`, and `web`, plus `tests/{unit,integration,security,e2e}`,
 `knowledge/orka_ats`, `fixtures`, `scripts`, and `docs`. Empty ceremonial modules
 are not required; Prompt 2 should create only the scaffold requested there.
 
-Existing files to preserve compatibly are `AGENTS.md`, this documentation set, the
+Files to preserve compatibly are `AGENTS.md`, this documentation set, the
 implementation prompt pack, the ecosystem source context, and `.gitignore`.
-Currently no application interface exists to migrate.
+Public V1 API and adapter interfaces are documented and covered by contract tests;
+documentation cleanup must not silently replace them.
 
 ## Explicit assumptions
 
@@ -124,7 +126,7 @@ system, vector technology, cross-app event bus, and production observability are
 not V1 selections. Naming one now would create false coupling. Their triggers and
 invariants are in `docs/FUTURE_MIGRATION_PLAN.md`.
 
-## Prompt 1 review record
+## Historical Prompt 1 review record
 
 | Field | Value |
 |---|---|
@@ -133,9 +135,9 @@ invariants are in `docs/FUTURE_MIGRATION_PLAN.md`.
 | Outcome | Pending: approve, approve with recorded conditions, or request changes |
 | Conditions/notes | Pending |
 
-Until the outcome is recorded as approved, human review is the only issue that
-blocks Prompt 2. Questions Q-001 through Q-013 are intentionally routed to later
-checkpoints and must not be accidentally decided during scaffolding.
+This historical scaffold record does not block the completed Local V1 build.
+Questions Q-001 through Q-015 remain routed to their named owners and must not be
+accidentally decided by local-demo documentation.
 
 ## Prompt 18 action review record
 
@@ -149,6 +151,19 @@ The complete review artifact is
 | Outcome | Approved to proceed by the explicit Prompt 19 implementation request |
 | Selected action | `candidate.update_start_date` version `1.0.0`, mock only |
 | Conditions/notes | Isolated mock state only; real OrkaATS integration remains unproven |
+
+## Prompt 21 final acceptance record
+
+The technical result, twenty acceptance targets, deferrals, and final release
+commands are in [`V1_ACCEPTANCE_CHECKLIST.md`](V1_ACCEPTANCE_CHECKLIST.md).
+
+| Field | Value |
+|---|---|
+| Reviewer | Pending human project lead |
+| Review date | Pending |
+| Outcome | Pending: approve, approve with recorded conditions, or request changes |
+| Scope | Local deterministic V1 only, including the mock-only `candidate.update_start_date` POC |
+| Required follow-up | Record accepted residual risks and V2 owner/milestone before any live boundary work |
 
 ## Verification steps
 

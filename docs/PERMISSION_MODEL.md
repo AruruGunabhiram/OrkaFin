@@ -1,7 +1,7 @@
 # Local V1 Permission Model
 
-**Status:** Prompt 7 fixture policy retained; Prompt 11 context enforcement pending human review
-**Scope:** Local identity harness, authorization evaluator/redaction, and Prompt 11 context endpoint
+**Status:** Local V1 fixture policy and trusted context/action enforcement implemented; final human acceptance pending
+**Scope:** Local identity harness, authorization evaluator/redaction, trusted context, and the one mock-only action
 
 ## Boundary and decision rule
 
@@ -49,9 +49,9 @@ Prompt 7 preserves the four names already declared in
 | Permission | Local meaning | Grant status |
 |---|---|---|
 | `candidate.view` | Required in addition to an exact record grant before any candidate summary | Admin, recruiter, limited viewer fixtures |
-| `candidate.create` | Provisional catalog grant only; no endpoint is implemented in Prompt 7 | Admin and recruiter fixtures |
+| `candidate.create` | Provisional catalog vocabulary only; Local V1 has no candidate-create endpoint | Admin and recruiter fixtures |
 | `candidate.notes.view` | Exceptional prerequisite for a bounded notes excerpt; an explicit `notes_excerpt` field grant is also required | No Prompt 7 fixture |
-| `candidate.update_start_date` | One prerequisite for the disabled provisional action; availability, record access, confirmation, revalidation, adapter execution, and audit remain separate | Admin permission fixture only; no fixture advertises the action as available |
+| `candidate.update_start_date` | One prerequisite for the single mock-only action; availability, record access, confirmation, revalidation, adapter execution, and audit remain separate | Admin only, and only as adapter-advertised availability on a visible candidate profile |
 
 Knowledge catalog membership is vocabulary, not authorization. For example, the
 administrator fixture's `candidate.update_start_date` grant does not make the
@@ -62,9 +62,9 @@ is disabled.
 
 | Fixture | Role label (non-granting) | Candidate records | Pages | Permission grants | Available actions |
 |---|---|---|---|---|---|
-| `admin` | `administrator` | `CAND-1001`, `CAND-1002` | All six provisional pages | `candidate.view`, `candidate.create`, `candidate.update_start_date` | None |
-| `recruiter` | `recruiter` | Assigned fixture record `CAND-1001` | All six provisional pages | `candidate.view`, `candidate.create` | None |
-| `limited_viewer` | `limited_viewer` | Allowed fixture record `CAND-1001` | Dashboard, list, profile, pipeline | `candidate.view` | None |
+| `admin` | `administrator` | `CAND-1042`, `CAND-1043` | All six provisional pages | `candidate.view`, `candidate.create`, `candidate.update_start_date` | `candidate.update_start_date` only on a visible candidate-profile context |
+| `recruiter` | `recruiter` | Assigned fixture record `CAND-1042` | All six provisional pages | `candidate.view`, `candidate.create` | None |
+| `limited_viewer` | `limited_viewer` | Allowed fixture record `CAND-1042` | Candidate dashboard, list, profile, pipeline | `candidate.view` | None |
 | `unverified` | None | None | None | None | None |
 
 The record lists are synthetic examples of trusted adapter output, not a policy
@@ -116,7 +116,7 @@ safe message. Requested IDs, emails, role claims, hidden field names, permission
 names, and values are not echoed. Audit services may record the stable code with
 their separately bounded references under the audit data policy.
 
-## Prompt 11 endpoint enforcement
+## Trusted context enforcement
 
 The context service constructs `AuthorizationContext` only from the
 adapter-verified `UserIdentity` and fresh `TrustedAuthorizationFacts`. It checks
@@ -161,8 +161,8 @@ permission or identity protocol has been approved.
 
 ## Human review checkpoint
 
-Prompt 8 must not begin until the designated OrkaATS product owner and security
-reviewer decide the following provisional choices:
+Final human acceptance must record the following provisional choices before any
+live boundary expands:
 
 - whether the three role labels and four synthetic fixture identities are suitable;
 - whether page grants for each fixture are correct;

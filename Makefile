@@ -1,4 +1,4 @@
-.PHONY: install format lint typecheck test test-coverage security-scan migrate database-init knowledge-validate run
+.PHONY: install format lint typecheck test test-coverage security-scan migrate database-init knowledge-validate run demo demo-check inspect-activity
 
 install:
 	python -m pip install -e '.[dev]'
@@ -31,3 +31,12 @@ knowledge-validate:
 
 run:
 	uvicorn orkafin.main:app --reload
+
+demo:
+	python scripts/run_local_demo.py --subject admin
+
+demo-check:
+	python scripts/run_local_demo.py --subject admin --check-only
+
+inspect-activity:
+	python scripts/inspect_local_activity.py

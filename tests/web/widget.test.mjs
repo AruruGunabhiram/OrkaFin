@@ -139,6 +139,61 @@ test("renders refusals, sources, and safe API failures", async () => {
   assert.ok(findText(errorRoot, "Adapter unavailable."));
 });
 
+test("submits every supported recommendation feedback type through the existing API contract", async () => {
+  const document = new FakeDocument();
+  const root = document.createElement("div");
+  const feedback = [];
+  const widget = mountAssistantWidget(root, {
+    document,
+    context: { app_id: "orka_ats", page: "recruitment_pipeline" },
+    transport: {
+      async evaluateRecommendations() {
+        return {
+          preference: "enabled",
+          recommendations: [{
+            recommendation_id: "recommendation-widget",
+            title: "Review the recruitment pipeline",
+            body: "Synthetic recommendation.",
+            rationale: "Synthetic rationale.",
+            source_references: ["catalog://orka_ats/recommendations/review_recruitment_pipeline"],
+          }],
+        };
+      },
+      async submitFeedback(value) {
+        feedback.push(value);
+        return {
+          recommendation_id: value.recommendationId,
+          status: value.feedbackType === "dismissed" ? "dismissed" : "shown",
+          preference: value.preference || "enabled",
+        };
+      },
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Helpful").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(feedback[0].feedbackType, "helpful");
+
+  widget.setContext({ app_id: "orka_ats", page: "recruitment_pipeline" });
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Not helpful").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(feedback[1].feedbackType, "not_helpful");
+
+  widget.setContext({ app_id: "orka_ats", page: "recruitment_pipeline" });
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Accept").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(feedback[2].feedbackType, "accepted");
+
+  widget.setContext({ app_id: "orka_ats", page: "recruitment_pipeline" });
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Dismiss").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(feedback[3].feedbackType, "dismissed");
+});
+
 test("previews, confirms, and executes only after a separate explicit click", async () => {
   const document = new FakeDocument();
   const root = document.createElement("div");

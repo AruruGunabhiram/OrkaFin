@@ -29,7 +29,14 @@ def test_local_demo_and_static_widget_assets_are_served() -> None:
     renderer = asyncio.run(_get(application, "/_orkafin/static/widget-renderer.js"))
 
     assert "OrkaFin local test mode" in demo
+    assert 'value="candidate_dashboard"' in demo
+    assert 'value="recruitment_pipeline"' in demo
+    assert 'value="CAND-1043"' in demo
+    assert 'value="dashboard"' not in demo
+    assert 'value="pipeline"' not in demo
+    assert 'value="CAND-1001"' not in demo
     assert "mountAssistantWidget" in widget
+    assert 'page: "candidate_dashboard"' in widget
     assert "Execute approved update" in renderer
     assert "real OrkaATS and its Google Sheet are not connected" in renderer
 

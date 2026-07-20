@@ -1,98 +1,73 @@
 # OrkaFin Local V1
 
-OrkaFin Local V1 is a permission-aware guidance and recommendation layer for one
-pilot application, OrkaATS. It is not a generic chatbot and it is not the system
-of record for candidates. OrkaATS owns candidate data, candidate permissions,
-business validation, and every candidate write.
+OrkaFin Local V1 is a reproducible, permission-aware guidance layer for the synthetic OrkaATS pilot. It is not a generic chatbot, candidate system of record, or production deployment. OrkaATS owns candidate data, permission decisions, business validation, and writes. OrkaFin never directly reads or writes the OrkaATS Google Sheet.
 
-The current repository includes the typed local service scaffold, Prompt 3's safe
-configuration/error/correlation foundation, and Prompt 4's canonical versioned
-domain contracts. It includes an application factory and a versioned
-`GET /health` endpoint, but no database schema, business endpoint, knowledge
-loader, adapter implementation, widget, or model-provider integration.
+The local demo provides deterministic grounded answers, field-redacted candidate summaries, recommendations and feedback, append-only audits, and one separately confirmed mock-only start-date action. It works without an AI-provider key, network access, Apps Script, or live candidate data.
 
-## Local quick start
+## Start the demo
+
+Prerequisites: Python 3.11+, Node.js 18+ for the widget test, and `make` (optional). From a fresh clone:
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
-make lint typecheck test
-make run
+cp -n .env.example .env
+python scripts/run_local_demo.py --subject admin
 ```
 
-Then request `http://127.0.0.1:8000/health`. See
-[local setup](docs/LOCAL_SETUP.md) for all quality, migration, and knowledge
-validation commands.
+Open <http://127.0.0.1:8000/demo>. The demo launcher refuses non-local, non-SQLite, non-deterministic-provider, credentialed-CORS, non-loopback, and non-fixture configuration before it migrates or starts anything. It performs the local migration, validates checked-in knowledge, and resets only adapter-owned mock state.
 
-## V1 decisions at a glance
+Use `--check-only` to perform those checks without starting the server:
 
-- Run one modular local FastAPI service on Python 3.11 or newer.
-- Use Pydantic v2 contracts, SQLAlchemy 2, SQLite, and Alembic when implementation
-  begins. Candidate records must never be added to OrkaFin persistence.
-- Integrate Orka applications only through a versioned, application-neutral
-  adapter contract. OrkaFin must never read or write the OrkaATS Google Sheet
-  directly.
-- Treat browser-supplied identity, email, role, permissions, selected record, and
-  available actions as untrusted hints.
-- Use structured deterministic retrieval and a deterministic response provider by
-  default. An external model is optional and is never an authorization or action
-  authority.
-- Deliver grounded guidance and recommendations. Prompt 19 implements one
-  permission-revalidated, explicitly confirmed action through isolated mock state;
-  no live OrkaATS or Google Sheet execution is claimed.
-- Use explicit mock identities locally. A mock identity is not production
-  authentication and proves nothing about a live Apps Script deployment.
+```bash
+python scripts/run_local_demo.py --subject admin --check-only
+```
+
+The default `admin` fixture can use the mock action. Start with `--subject limited_viewer` to demonstrate field-redacted summaries and an unavailable action. All fixture data is synthetic.
+
+## What to try
+
+1. Keep **Candidate profile** and `CAND-1042`, open **Ask OrkaFin**, and ask **Explain this page** or **Summarize this candidate**. Responses show their approved sources; the candidate summary omits restricted/sensitive fields.
+2. Ask **What is quantum candidate matching?** for the explicit unavailable response. Select `CAND-1099` and request a summary for a safe access denial.
+3. Select **Recruitment pipeline** with no candidate to view the deterministic recommendation. Its controls submit helpful, not-helpful, accepted, dismissed, or disabled-preference feedback.
+4. With the `admin` fixture on `CAND-1042`, preview a different start date, review it, confirm it, then use the separate execution click. This changes only `var/mock_orka_ats_state.json`.
+5. Inspect bounded redacted local activity; no public audit API exists:
+
+   ```bash
+   python scripts/inspect_local_activity.py --limit 20
+   ```
+
+See [the walkthrough](docs/LOCAL_DEMO.md) for expected behavior and the optional action flow.
+
+## Verification
+
+The complete local release gate is:
+
+```bash
+rm -f var/orkafin.db
+python -m orkafin.adapters.orka_ats.seed --reset
+alembic upgrade head
+python -m orkafin.knowledge.validate knowledge/orka_ats
+python scripts/scan_secrets.py
+ruff format --check .
+ruff check .
+mypy src
+pytest --cov=orkafin --cov-report=term-missing -q
+node --test tests/web/widget.test.mjs
+```
+
+The security suite blocks live sockets; the demo and tests do not contact an external provider, Apps Script, Google Sheet, or real candidate system. Results, coverage, residual risks, and the human sign-off record are in [the V1 acceptance checklist](docs/V1_ACCEPTANCE_CHECKLIST.md).
 
 ## Documentation map
 
-The local V1 source-of-truth documents are:
+- [Local setup](docs/LOCAL_SETUP.md) — reproducible install, configuration, and release commands.
+- [Local demo](docs/LOCAL_DEMO.md) — browser/API walkthrough and expected results.
+- [Developer runbook](docs/DEVELOPER_RUNBOOK.md) — resets, local inspection, and safe troubleshooting.
+- [API](docs/API.md) — public V1 endpoints and synthetic examples.
+- [Orka app onboarding guide](docs/ORKA_APP_ONBOARDING_GUIDE.md) — the general adapter path for a future app.
+- [Future migration plan](docs/FUTURE_MIGRATION_PLAN.md) — gates for tunnels, hosted service, identity, and operations.
+- [Test strategy](docs/TEST_STRATEGY.md) and [threat model](docs/THREAT_MODEL.md) — tested controls and residual risks.
+- [Decisions](docs/DECISIONS.md) — frozen Local V1 boundaries and the human review record.
 
-- [V1 scope and non-goals](docs/V1_SCOPE_AND_NON_GOALS.md)
-- [Architecture and request flows](docs/ARCHITECTURE.md)
-- [Security model](docs/SECURITY_MODEL.md)
-- [Threat model](docs/THREAT_MODEL.md)
-- [Decisions, assumptions, and open questions](docs/DECISIONS.md)
-- [Future migration plan](docs/FUTURE_MIGRATION_PLAN.md)
-- [Domain model and ownership contracts](docs/DOMAIN_MODEL.md)
-- [Event, action, and audit persistence model](docs/EVENT_AND_AUDIT_MODEL.md)
-- [Action proposal and confirmation review](docs/ACTION_AND_CONFIRMATION_FLOW.md)
-- [ADR-001: local-first architecture](docs/adr/ADR-001-local-first-architecture.md)
-- [ADR-002: application data ownership](docs/adr/ADR-002-application-data-ownership.md)
-- [ADR-003: no vector database for initial V1](docs/adr/ADR-003-no-vector-database-for-initial-v1.md)
-- [ADR-004: provider-independent AI interface](docs/adr/ADR-004-provider-independent-ai-interface.md)
-
-The [ecosystem context](docs/source/ORKAFIN_ECOSYSTEM_CONTEXT.md) describes the
-longer-term Orka OS direction. The
-[implementation prompt pack](docs/plans/OrkaFin_Local_V1_Implementation_Prompt_Pack.md)
-controls build sequencing. If broad future context conflicts with the approved
-local V1 documents, the narrower local V1 decision and its ADR govern V1.
-
-## Repository boundary
-
-The `orkafin` import package uses a `src` layout with modules for API, core
-configuration, domain contracts, application services, adapters, infrastructure,
-knowledge, providers, and the framework-free web widget. These are modules in one
-deployable service, not microservices.
-
-The planned database may contain OrkaFin-owned conversations, messages, events,
-recommendations, feedback, action state, execution receipts, and audit records.
-It must not contain a `candidates` table, a replica of candidate rows, or raw
-candidate notes. A mock OrkaATS adapter may keep isolated fixture state outside
-the OrkaFin persistence model.
-
-## Verification for this increment
-
-Prompt 1 is complete only when all required documents exist, relative links
-resolve, required boundary language is present, and a human approves the
-architecture. The repository currently has no configured Markdown link checker;
-Prompt 1 therefore uses explicit path/link validation plus manual substantive
-review. Verification commands and results belong in the Prompt 1 handoff.
-
-## Change triggers for a frozen decision
-
-Do not silently change a boundary. A change requires an update to
-`docs/DECISIONS.md`, the affected architecture/security documents, and a new or
-superseding ADR. Re-review is mandatory if a change would add production identity,
-direct Sheet access, candidate persistence, an autonomous action, a vector
-database, a multi-service deployment, or reliance on an external model.
+Before changing a trust boundary, candidate persistence, authentication method, adapter transport, action, browser origin, or deployment topology, update the affected decision/security documents and add or supersede an ADR. The final local acceptance does not approve any production boundary.

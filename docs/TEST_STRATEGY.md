@@ -91,8 +91,8 @@ candidate system.
 floor. The floor is intentionally secondary to the threat matrix: a release cannot
 trade away QA-03 through QA-26 to preserve an overall percentage.
 
-The Prompt 20 measured baseline is 85.2% aggregate, comprising 89.2% statements and
-66.5% branches. Representative critical-module aggregate results are context
+The final Prompt 21 clean-run baseline is 85.3% aggregate, comprising 89.3% statements and
+66.7% branches. Representative critical-module aggregate results are context
 resolution 88.1%, permission evaluation 89.0%, redaction 90.0%, action proposal
 88.6%, action execution 80.1%, response generation 87.8%, grounding 90.5%, provider
 validation 86.0%, and repositories 89.1%.
@@ -144,6 +144,20 @@ python -m pip_audit --local --strict
 
 Add this as a mandatory release gate only after tool/version policy and dependency
 locking are approved.
+
+## Prompt 21 reproducibility checks
+
+The final handoff adds a checked `scripts/run_local_demo.py` launcher, a read-only
+`scripts/inspect_local_activity.py` operator CLI, a static demo-control regression,
+and widget coverage for every existing feedback type. The launcher refuses an
+external provider/key, non-local mode, non-fixture mode, non-loopback host,
+credentialed CORS, an unsafe database URL, or an unverified fixture before it
+migrates/starts the local demo. The activity CLI has no API route and is tested to
+redact recognizable sensitive text from stored JSON before printing it.
+
+The final clean-setup and human-acceptance record is
+[`V1_ACCEPTANCE_CHECKLIST.md`](V1_ACCEPTANCE_CHECKLIST.md). Manual browser smoke
+still complements, rather than replaces, the automated E2E/widget evidence.
 
 ## Known residual risks and skipped tests
 

@@ -4,7 +4,7 @@ import { createAssistantTransport } from "./widget-transport.js";
 
 export function mountAssistantWidget(root, { context, transport, document = window.document } = {}) {
   if (!root) throw new Error("An assistant root element is required.");
-  const state = createAssistantState(context || { app_id: "orka_ats", page: "dashboard" });
+  const state = createAssistantState(context || { app_id: "orka_ats", page: "candidate_dashboard" });
   const client = transport || createAssistantTransport();
   let conversationId = null;
 

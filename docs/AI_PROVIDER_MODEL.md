@@ -52,8 +52,9 @@ complete prompt-injection solution.
 
 ## Intentional internal contract hardening
 
-The domain `schema_version` remains `v1`; no public assistant endpoint exists yet.
-Prompt 14 intentionally tightens the Prompt 13 internal provider contract:
+The domain `schema_version` remains `v1`; the public assistant endpoint is
+`POST /api/v1/assistant/queries`. The final internal provider contract intentionally
+tightens the earlier draft shape:
 
 - every grounded `ProviderDraft` now requires `ProviderClaim` records covering its
   main text and every step exactly once;
