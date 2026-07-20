@@ -56,17 +56,18 @@ is missing. The system must say so rather than guess.
 
 ## Optional confirmed-action proof of concept
 
-The action extension is excluded from the mandatory V1 path unless a reviewer opts
-in after Prompt 17 and selects exactly one low-risk mock action. The default
-candidate for that later decision is `candidate.update_start_date`, as proposed by
-the implementation pack; it is not approved by this document.
+Prompt 18 opts into preparation and confirmation for exactly one low-risk mock
+action, `candidate.update_start_date`. The action catalog, permission/current-value
+checks, exact preview, one-time challenge, expiry, replay protection, state, audit,
+API, and widget controls are implemented. This approval does not include execution.
 
-Even in mock mode, execution is forbidden until the catalog, permission check,
+Even in mock mode, execution remains forbidden until the catalog, permission check,
 record visibility, typed validation, exact preview, one-time expiring
 confirmation, parameter binding, execution-time revalidation, idempotency, audit
 trail, adapter failure handling, and receipt validation are implemented and
-reviewed. No autonomous, batched, destructive, background, or live Sheet action is
-part of V1.
+reviewed. Prompt 18 stops at `confirmed`/`accepted` with
+`execution_enabled=false`; no execution row or adapter write occurs. No autonomous,
+batched, destructive, background, or live Sheet action is part of V1.
 
 ## Data boundary
 
@@ -143,4 +144,3 @@ outside a local machine, connects to live Apps Script, needs production identity
 adds a second executable action, measures insufficient structured retrieval, or
 proposes storing new application-owned data. Product convenience alone does not
 override the ownership or authorization boundary.
-

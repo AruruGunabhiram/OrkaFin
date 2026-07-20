@@ -68,16 +68,16 @@ permissions:
   - schema_version: v1
     permission: candidate.update_start_date
     title: Update a candidate start date
-    purpose: Reserve a provisional permission name for the unapproved action proof of concept.
+    purpose: Permit preparation and confirmation of the approved mock-only start-date action proof of concept.
     aliases: [update_start_date]
     supported_roles:
       - schema_version: v1
         role_id: administrator
         display_name: Administrator
         owner_app_id: orka_ats
-    page_ids: []
-    feature_ids: []
-    action_ids: []
+    page_ids: [candidate_profile]
+    feature_ids: [candidate_profile_review]
+    action_ids: [candidate.update_start_date]
     provenance:
       schema_version: v1
       content_version: 0.1.0

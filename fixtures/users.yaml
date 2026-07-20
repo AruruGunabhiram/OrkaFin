@@ -54,7 +54,7 @@ users:
             - resume_link
             - start_date
             - updated_at
-      available_action_ids: []
+      available_action_ids: [candidate.update_start_date]
 
   - fixture_id: recruiter
     identity:

@@ -23,6 +23,18 @@ button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3p
 .assistant-recommendation-body, .assistant-recommendation-reason, .assistant-recommendation-source, .assistant-recommendation-notice { margin: .35rem 0; font-size: .86rem; }
 .assistant-recommendation-controls { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .65rem; }
 .assistant-recommendation-action { border: 1px solid #64748b; border-radius: .35rem; background: #fff; padding: .35rem .5rem; font-size: .82rem; }
+.assistant-action { margin: 1rem 0; padding: .8rem; border: 1px solid #f59e0b; border-radius: .55rem; background: #fffbeb; line-height: 1.4; }
+.assistant-action-title, .assistant-action-preview-title { margin: 0 0 .4rem; font-size: .95rem; }
+.assistant-action-disabled { margin: .35rem 0 .7rem; color: #92400e; font-size: .84rem; font-weight: 700; }
+.assistant-action-form { display: grid; gap: .45rem; }
+.assistant-action-date { border: 1px solid #64748b; border-radius: .4rem; padding: .5rem; }
+.assistant-action-preview, .assistant-action-confirm, .assistant-action-cancel { border: 1px solid #64748b; border-radius: .4rem; background: #fff; padding: .45rem .6rem; }
+.assistant-action-preview { justify-self: start; }
+.assistant-action-controls { display: flex; gap: .45rem; flex-wrap: wrap; }
+.assistant-action-change { font-weight: 700; }
+.assistant-action-warnings { padding-left: 1.15rem; font-size: .82rem; }
+.assistant-action-result { color: #166534; font-weight: 700; }
+.assistant-action-error { color: #991b1b; }
 .assistant-response-kind, .assistant-sources h3 { font-size: .92rem; margin: 0 0 .35rem; color: #334155; }
 .assistant-response-text { margin: 0; white-space: pre-wrap; }
 .assistant-steps { padding-left: 1.3rem; }

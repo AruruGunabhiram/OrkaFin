@@ -572,7 +572,7 @@ class MockOrkaATSAdapter:
     def _available_action_ids(
         self, user: dict[str, Any], context: ResolvedApplicationContext
     ) -> tuple[str, ...]:
-        if context.selected_entity is None:
+        if context.page_id != "candidate_profile" or context.selected_entity is None:
             return ()
         return tuple(
             action_id

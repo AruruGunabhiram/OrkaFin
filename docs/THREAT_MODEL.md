@@ -1,6 +1,6 @@
 # Local V1 Threat Model
 
-**Status:** Updated for Prompt 14; human security review required before Prompt 15
+**Status:** Updated for Prompt 18 confirmation controls; human review required before Prompt 19
 **Method:** Asset and trust-boundary review with abuse cases and testable controls
 
 ## Scope and assets
@@ -135,8 +135,10 @@ business validation; reject unknown fields and stale/conflicting state.
 add fields, swap users/workspaces/records, change state between steps, and call
 execution without proposal/confirmation. No adapter execution should occur.
 
-**Residual risk/change trigger:** The exact first action remains unapproved. Every
-new action/input schema needs action-specific abuse cases and preview review.
+**Residual risk/change trigger:** The Prompt 18 schema and preview now require
+human approval before execution. OrkaATS business-date, concurrency, rollback, and
+receipt rules remain unresolved. Every new action/input schema needs separate
+abuse cases and preview review.
 
 ### T-05 — Confirmation replay, theft, or expiry bypass
 
@@ -154,9 +156,10 @@ and expiry.
 logged-secret tests; database/log scans must not reveal plaintext; duplicate calls
 must produce one adapter effect at most.
 
-**Residual risk/change trigger:** Multi-process deployment requires database-level
-atomicity and distributed idempotency review; local in-process assumptions cannot
-carry forward.
+**Residual risk/change trigger:** Prompt 18 uses conditional SQLite transitions and
+one challenge per proposal, but multi-process/remote deployment still requires a
+database-level concurrency, CSRF/session-theft, and distributed idempotency review.
+No execution retry behavior is approved.
 
 ### T-06 — Fabricated or ambiguous success
 

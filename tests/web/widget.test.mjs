@@ -46,6 +46,10 @@ function flatten(node) {
   return [node, ...node.children.flatMap(flatten)];
 }
 
+function findClass(node, className) {
+  return flatten(node).find((candidate) => candidate.className === className) || null;
+}
+
 test("renders response text as text nodes rather than markup", () => {
   const document = new FakeDocument();
   const root = document.createElement("div");
@@ -133,4 +137,128 @@ test("renders refusals, sources, and safe API failures", async () => {
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(findText(errorRoot, "OrkaATS adapter unavailable"));
   assert.ok(findText(errorRoot, "Adapter unavailable."));
+});
+
+test("previews and confirms intent while keeping execution visibly disabled", async () => {
+  const document = new FakeDocument();
+  const root = document.createElement("div");
+  const challenge = "challenge_plaintext_must_not_render_1234567890";
+  let proposedRequest = null;
+  let confirmationRequest = null;
+  const widget = mountAssistantWidget(root, {
+    document,
+    context: {
+      app_id: "orka_ats",
+      page: "candidate_profile",
+      selected_entity: { type: "candidate", id: "CAND-1042" },
+    },
+    transport: {
+      async proposeAction(value) {
+        proposedRequest = value;
+        return {
+          proposal_id: "proposal-widget",
+          preview: {
+            summary: "Prepare a candidate start-date update for confirmation.",
+            owning_app_id: "orka_ats",
+            owning_app_display_name: "Mock OrkaATS",
+            target_candidate_id: "CAND-1042",
+            affected_user_id: "mock-user-admin",
+            affected_user_display_name: "Synthetic Administrator",
+            affected_workspace_id: "workspace_recruiting_alpha",
+            affected_workspace_display_name: "Synthetic Recruiting Alpha",
+            changes: [{ field_label: "Start date", old_value: "2026-08-17", new_value: "2026-10-06" }],
+            warnings: ["No candidate change will be made."],
+            reversible: true,
+          },
+          confirmation: { confirmation_token: challenge },
+        };
+      },
+      async confirmAction(value) {
+        confirmationRequest = value;
+        return {
+          proposal_status: "confirmed",
+          confirmation_status: "accepted",
+          execution_ready: true,
+          execution_enabled: false,
+          execution_state: "not_started",
+          message: "Confirmation accepted. Execution is disabled; no action was executed.",
+        };
+      },
+    },
+  });
+
+  widget.open();
+  const dateInput = findClass(root, "assistant-action-date");
+  dateInput.value = "2026-10-06";
+  findClass(root, "assistant-action-form").dispatch("submit");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(proposedRequest.startDate, "2026-10-06");
+  assert.deepEqual(proposedRequest.context.selected_entity, { type: "candidate", id: "CAND-1042" });
+  assert.ok(findText(root, "Execution disabled — this flow can only prepare, preview, confirm, or cancel."));
+  assert.ok(findText(root, "Start date: 2026-08-17 → 2026-10-06"));
+  assert.equal(findText(root, challenge), null);
+
+  findText(root, "Confirm intent only").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(confirmationRequest.decision, "accept");
+  assert.equal(confirmationRequest.confirmationToken, challenge);
+  assert.equal(confirmationRequest.startDate, "2026-10-06");
+  assert.ok(findText(root, "Confirmation accepted. Execution is disabled; no action was executed."));
+  assert.equal(findText(root, challenge), null);
+});
+
+test("cancel control rejects the issued confirmation instead of executing", async () => {
+  const document = new FakeDocument();
+  const root = document.createElement("div");
+  let decision = null;
+  const widget = mountAssistantWidget(root, {
+    document,
+    context: {
+      app_id: "orka_ats",
+      page: "candidate_profile",
+      selected_entity: { type: "candidate", id: "CAND-1042" },
+    },
+    transport: {
+      async proposeAction() {
+        return {
+          proposal_id: "proposal-cancel",
+          preview: {
+            summary: "Preview",
+            owning_app_id: "orka_ats",
+            owning_app_display_name: "Mock OrkaATS",
+            target_candidate_id: "CAND-1042",
+            affected_user_id: "mock-user-admin",
+            affected_workspace_id: "workspace_recruiting_alpha",
+            changes: [{ field_label: "Start date", old_value: "2026-08-17", new_value: "2026-10-06" }],
+            warnings: ["Execution disabled."],
+            reversible: true,
+          },
+          confirmation: { confirmation_token: "cancel_challenge_plaintext_123456789012345678" },
+        };
+      },
+      async confirmAction(value) {
+        decision = value.decision;
+        return {
+          proposal_status: "cancelled",
+          confirmation_status: "rejected",
+          execution_ready: false,
+          execution_enabled: false,
+          execution_state: "not_started",
+          message: "Confirmation was cancelled. No action was executed.",
+        };
+      },
+    },
+  });
+
+  widget.open();
+  findClass(root, "assistant-action-date").value = "2026-10-06";
+  findClass(root, "assistant-action-form").dispatch("submit");
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Cancel").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(decision, "reject");
+  assert.ok(findText(root, "Confirmation was cancelled. No action was executed."));
 });

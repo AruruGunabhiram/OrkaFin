@@ -20,9 +20,19 @@ export function createAssistantTransport({ baseUrl = "", fetchFn = fetch, timeou
       const requestId = response.headers.get("X-Request-ID");
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new AssistantTransportError("api_error", payload?.message || "The request could not be completed.", requestId);
+        const kind = response.status === 503 ? "adapter_failure" : "api_error";
+        throw new AssistantTransportError(kind, payload?.message || "The request could not be completed.", requestId);
       }
       return payload;
+    } catch (error) {
+      if (error instanceof AssistantTransportError) throw error;
+      if (error?.name === "AbortError") {
+        throw new AssistantTransportError("timeout", "The request timed out. Please try again.");
+      }
+      throw new AssistantTransportError(
+        "offline",
+        "The assistant is offline. Check the local service and try again.",
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -72,6 +82,21 @@ export function createAssistantTransport({ baseUrl = "", fetchFn = fetch, timeou
       const body = { recommendation_id: recommendationId, feedback_type: feedbackType, context };
       if (preference) body.preference = preference;
       return request("/api/v1/feedback", body);
+    },
+    async proposeAction({ context, startDate }) {
+      return request("/api/v1/action-proposals", {
+        action_id: "candidate.update_start_date",
+        parameters: { start_date: startDate },
+        context,
+      });
+    },
+    async confirmAction({ proposalId, context, startDate, confirmationToken, decision }) {
+      return request(`/api/v1/action-proposals/${encodeURIComponent(proposalId)}/confirmations`, {
+        decision,
+        confirmation_token: confirmationToken,
+        parameters: { start_date: startDate },
+        context,
+      });
     },
   };
 }

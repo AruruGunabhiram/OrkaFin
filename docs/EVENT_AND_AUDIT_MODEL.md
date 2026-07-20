@@ -129,3 +129,22 @@ to the resolved user/workspace before storing it. Preferences live in the
 OrkaFin-only `recommendation_preferences` table; they do not modify OrkaATS.
 The `9c2e4f6a1b73` migration adds that table and source-reference storage for
 recommendations.
+
+## Prompt 18 action proposal and confirmation audits
+
+The migration `e7a1c4b92d10` adds `action_permission_checked` to the audit
+vocabulary and enforces one confirmation row and one confirmation-secret digest
+per proposal. It recreates the SQLite append-only update/delete triggers after the
+audit check constraint changes.
+
+The confirmation-only workflow appends `action_permission_checked`,
+`action_proposed`, `action_confirmation_issued`, `action_confirmed`,
+`action_confirmation_rejected`, `action_confirmation_expired`, and
+`action_tampering_rejected` as applicable. Details contain only bounded IDs,
+phase/status, TTL, and safe reason/decision codes. Old/new values, raw requests,
+plaintext challenges, parameter hashes, token hashes, hidden fields, and exception
+text are excluded. There is still no audit-read endpoint.
+
+Confirmation does not append action success/failure events because no execution is
+attempted. The exact records and outcomes are reviewed in
+[`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md).

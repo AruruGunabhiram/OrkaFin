@@ -75,7 +75,104 @@ function renderRecommendation(document, container, recommendation, notice, onFee
   container.append(controls);
 }
 
-export function createAssistantRenderer({ document, root, state, onSend, onFeedback, onReset }) {
+function renderActionControls(
+  document,
+  container,
+  snapshot,
+  onProposeAction,
+  onConfirmAction,
+  onCancelAction,
+) {
+  container.replaceChildren();
+  appendText(document, container, "h3", "assistant-action-title", "Confirmed action proof of concept");
+  appendText(
+    document,
+    container,
+    "p",
+    "assistant-action-disabled",
+    "Execution disabled — this flow can only prepare, preview, confirm, or cancel.",
+  );
+
+  if (snapshot.actionResult) {
+    appendText(document, container, "p", "assistant-action-result", snapshot.actionResult.message);
+    return;
+  }
+  if (snapshot.actionError) {
+    appendText(document, container, "p", "assistant-action-error", snapshot.actionStatus);
+  }
+
+  const proposal = snapshot.actionProposal;
+  if (!proposal) {
+    const form = element(document, "form", "assistant-action-form");
+    const label = element(document, "label", "", "Proposed start date");
+    label.htmlFor = "orkafin-start-date";
+    const input = element(document, "input", "assistant-action-date");
+    input.id = "orkafin-start-date";
+    input.name = "start_date";
+    input.type = "date";
+    input.required = true;
+    input.disabled = snapshot.isActionSending;
+    const preview = element(
+      document,
+      "button",
+      "assistant-action-preview",
+      snapshot.isActionSending ? "Preparing…" : "Preview start-date update",
+    );
+    preview.type = "submit";
+    preview.disabled = snapshot.isActionSending;
+    form.append(label, input, preview);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      onProposeAction(input.value);
+    });
+    container.append(form);
+    return;
+  }
+
+  const preview = proposal.preview;
+  appendText(document, container, "h4", "assistant-action-preview-title", "Review exact preview");
+  appendText(document, container, "p", "", preview.summary);
+  appendText(document, container, "p", "", `Owning app: ${preview.owning_app_display_name} (${preview.owning_app_id})`);
+  appendText(document, container, "p", "", `Target candidate: ${preview.target_candidate_id}`);
+  appendText(document, container, "p", "", `Affected user: ${preview.affected_user_display_name || preview.affected_user_id}`);
+  appendText(document, container, "p", "", `Affected workspace: ${preview.affected_workspace_display_name || preview.affected_workspace_id}`);
+  preview.changes.forEach((change) => {
+    appendText(
+      document,
+      container,
+      "p",
+      "assistant-action-change",
+      `${change.field_label}: ${change.old_value ?? "Not set"} → ${change.new_value}`,
+    );
+  });
+  appendText(document, container, "p", "", `Reversible: ${preview.reversible ? "Yes" : "No"}`);
+  const warnings = element(document, "ul", "assistant-action-warnings");
+  preview.warnings.forEach((warning) => appendText(document, warnings, "li", "", warning));
+  container.append(warnings);
+  const controls = element(document, "div", "assistant-action-controls");
+  const confirm = element(document, "button", "assistant-action-confirm", "Confirm intent only");
+  confirm.type = "button";
+  confirm.disabled = snapshot.isActionSending;
+  confirm.addEventListener("click", onConfirmAction);
+  const cancel = element(document, "button", "assistant-action-cancel", "Cancel");
+  cancel.type = "button";
+  cancel.disabled = snapshot.isActionSending;
+  cancel.addEventListener("click", onCancelAction);
+  controls.append(confirm, cancel);
+  container.append(controls);
+}
+
+export function createAssistantRenderer({
+  document,
+  root,
+  state,
+  onSend,
+  onFeedback,
+  onProposeAction,
+  onConfirmAction,
+  onCancelAction,
+  onReset,
+}) {
   root.replaceChildren();
   const launcher = element(document, "button", "assistant-launcher", "Ask OrkaFin");
   launcher.type = "button";
@@ -94,6 +191,8 @@ export function createAssistantRenderer({ document, root, state, onSend, onFeedb
   response.setAttribute("aria-live", "polite");
   const recommendation = element(document, "section", "assistant-recommendation");
   recommendation.setAttribute("aria-live", "polite");
+  const action = element(document, "section", "assistant-action");
+  action.setAttribute("aria-live", "polite");
   const suggestions = element(document, "div", "assistant-suggestions");
   appendText(document, suggestions, "p", "", "Try a question");
   SUGGESTED_PROMPTS.forEach((prompt) => {
@@ -125,7 +224,7 @@ export function createAssistantRenderer({ document, root, state, onSend, onFeedb
   const status = element(document, "p", "assistant-status", "");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
-  panel.append(header, recommendation, response, suggestions, form, reset, status);
+  panel.append(header, recommendation, action, response, suggestions, form, reset, status);
   root.append(launcher, panel);
 
   launcher.addEventListener("click", () => state.open());
@@ -144,6 +243,14 @@ export function createAssistantRenderer({ document, root, state, onSend, onFeedb
     send.textContent = snapshot.isSending ? "Sending…" : "Send";
     status.textContent = snapshot.status;
     renderRecommendation(document, recommendation, snapshot.recommendation, snapshot.recommendationNotice, onFeedback);
+    renderActionControls(
+      document,
+      action,
+      snapshot,
+      onProposeAction,
+      onConfirmAction,
+      onCancelAction,
+    );
     if (snapshot.error) {
       response.replaceChildren();
       const errorLabel = {

@@ -7,6 +7,13 @@ from pydantic import BaseModel, ConfigDict
 
 from orkafin.adapters import AdapterCapability, GetAppMetadataRequest
 from orkafin.api.schemas import ConversationResponse, FeatureCatalogResponse
+from orkafin.application.actions import (
+    ActionConfirmationRequest,
+    ActionConfirmationResponse,
+    ActionProposalRequest,
+    ActionProposalResponse,
+    ActionProposalService,
+)
 from orkafin.application.assistant import AssistantQuery, AssistantQueryService
 from orkafin.application.context import TrustedContextResolutionService
 from orkafin.application.recommendations import (
@@ -67,6 +74,13 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
         ),
         response_service=ResponseGenerationService(provider=dependencies.response_provider),
         event_service=event_service,
+    )
+    action_service = ActionProposalService(
+        database=dependencies.database,
+        context_service=context_service,
+        adapter_registry=dependencies.adapter_registry,
+        knowledge_index=dependencies.knowledge_index,
+        settings=dependencies.settings,
     )
 
     def request_id_for(request: Request) -> RequestId:
@@ -134,6 +148,51 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
 
             raise AppNotSupportedError
         return FeatureCatalogResponse(app=index.app.metadata, features=index.features)
+
+    @router.post(
+        "/api/v1/action-proposals",
+        response_model=ActionProposalResponse,
+        status_code=status.HTTP_201_CREATED,
+        responses={
+            status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
+            status.HTTP_403_FORBIDDEN: {"model": ApiError},
+            status.HTTP_404_NOT_FOUND: {"model": ApiError},
+            status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ApiError},
+            status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ApiError},
+        },
+        tags=["actions"],
+    )
+    async def create_action_proposal(
+        value: ActionProposalRequest, request: Request
+    ) -> ActionProposalResponse:
+        """Prepare one mock-only action and return its exact confirmation preview."""
+        return await action_service.propose(value, request_id=request_id_for(request))
+
+    @router.post(
+        "/api/v1/action-proposals/{proposal_id}/confirmations",
+        response_model=ActionConfirmationResponse,
+        responses={
+            status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
+            status.HTTP_403_FORBIDDEN: {"model": ApiError},
+            status.HTTP_404_NOT_FOUND: {"model": ApiError},
+            status.HTTP_409_CONFLICT: {"model": ApiError},
+            status.HTTP_410_GONE: {"model": ApiError},
+            status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ApiError},
+            status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ApiError},
+        },
+        tags=["actions"],
+    )
+    async def confirm_action_proposal(
+        proposal_id: str,
+        value: ActionConfirmationRequest,
+        request: Request,
+    ) -> ActionConfirmationResponse:
+        """Accept or reject intent only; this endpoint cannot execute an action."""
+        return await action_service.confirm(
+            proposal_id,
+            value,
+            request_id=request_id_for(request),
+        )
 
     @router.post(
         "/api/v1/assistant/queries",

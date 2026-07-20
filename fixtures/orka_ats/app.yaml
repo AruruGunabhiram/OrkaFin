@@ -4,7 +4,7 @@ display_name: Mock OrkaATS
 description: Synthetic recruiting ownership boundary for local OrkaFin development.
 app_version: 1.0.0
 status: active
-enabled_action_ids: []
+enabled_action_ids: [candidate.update_start_date]
 workspaces:
   - workspace_id: workspace_recruiting_alpha
     display_name: Synthetic Recruiting Alpha

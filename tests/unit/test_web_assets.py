@@ -26,9 +26,11 @@ def test_local_demo_and_static_widget_assets_are_served() -> None:
 
     demo = asyncio.run(_get(application, "/demo"))
     widget = asyncio.run(_get(application, "/_orkafin/static/widget.js"))
+    renderer = asyncio.run(_get(application, "/_orkafin/static/widget-renderer.js"))
 
     assert "OrkaFin local test mode" in demo
     assert "mountAssistantWidget" in widget
+    assert "Execution disabled" in renderer
 
 
 def test_widget_static_files_do_not_contain_credentials_or_permission_claims() -> None:

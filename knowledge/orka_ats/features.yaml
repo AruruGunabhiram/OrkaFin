@@ -35,7 +35,7 @@ features:
     instruction_steps: []
     related_feature_ids: [candidate_directory]
     related_app_ids: []
-    available_action_ids: []
+    available_action_ids: [candidate.update_start_date]
     provenance:
       <<: *feature_provenance_directory
       safe_reference: catalog://orka_ats/features/candidate_profile_review

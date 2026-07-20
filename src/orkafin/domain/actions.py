@@ -72,6 +72,7 @@ class ActionParameterDefinition(DomainModel):
     required: bool
     sensitive: bool = False
     description: ShortText
+    validation_rules: tuple[ShortText, ...] = Field(default=(), max_length=10)
 
 
 class TextActionParameter(DomainModel):
@@ -175,7 +176,24 @@ class ActionDefinition(DomainModel):
                     "admin_approval_required": False,
                     "reversible": True,
                     "sensitivity": "low",
+                    "execution_mode": "mock_only",
+                    "validation_rules": [
+                        "Accept one complete ISO 8601 calendar date.",
+                        "Reject a proposed value equal to the current visible value.",
+                    ],
                     "audit_required": True,
+                    "audit_field_ids": [
+                        "actor_user_id",
+                        "workspace_id",
+                        "target_candidate_id",
+                        "action_id",
+                        "action_version",
+                        "proposal_id",
+                        "request_id",
+                        "outcome",
+                        "reason_code",
+                    ],
+                    "failure_behavior": "fail_closed_without_execution",
                     "status": "draft",
                     "safe_reference": "catalog://orka_ats/actions/update_start_date",
                 }
@@ -196,7 +214,11 @@ class ActionDefinition(DomainModel):
     admin_approval_required: bool
     reversible: bool
     sensitivity: ActionSensitivity
+    execution_mode: Literal["mock_only"] = "mock_only"
+    validation_rules: tuple[ShortText, ...] = Field(default=(), max_length=10)
     audit_required: Literal[True] = True
+    audit_field_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=25)
+    failure_behavior: Literal["fail_closed_without_execution"] = "fail_closed_without_execution"
     status: CatalogStatus
     safe_reference: SafeReference
 
@@ -205,6 +227,8 @@ class ActionDefinition(DomainModel):
         parameter_ids = [parameter.parameter_id for parameter in self.parameters]
         if len(parameter_ids) != len(set(parameter_ids)):
             raise ValueError("action parameter IDs must be unique")
+        if len(self.audit_field_ids) != len(set(self.audit_field_ids)):
+            raise ValueError("action audit field IDs must be unique")
         return self
 
 

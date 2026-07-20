@@ -1,6 +1,6 @@
 # Local V1 Architecture
 
-**Status:** Prompt 1 boundary retained; Prompt 11 context response pending mandatory human review
+**Status:** Prompt 1 boundary retained; Prompt 18 confirmation-only extension pending human review
 
 ## Architectural intent
 
@@ -162,7 +162,7 @@ audit construction. Unknown apps/pages are distinct 404 client/configuration
 errors; adapter unavailability and timeout remain 503. See [`API.md`](API.md) for
 the reviewed shape and safe error codes.
 
-## Confirmed-action request flow (optional and disabled initially)
+## Confirmed-action request flow (Prompt 18 preparation implemented; execution disabled)
 
 ```mermaid
 sequenceDiagram
@@ -192,6 +192,13 @@ revalidates identity, visibility, permissions, current state, and catalog versio
 Only a valid owning-adapter receipt permits a success state. Timeouts remain
 unknown until reconciled; they are not rewritten as success or as “no change”
 without proof.
+
+The implemented Prompt 18 flow stops after the widget's confirmation request.
+It persists `proposal=confirmed` and `confirmation=accepted`, returns
+`execution_ready=true` together with `execution_enabled=false`, and creates no
+execution record. The adapter execution half of the diagram is a Prompt 19 design
+only and remains blocked by the human checkpoint in
+[`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md).
 
 ## Apps Script and localhost
 

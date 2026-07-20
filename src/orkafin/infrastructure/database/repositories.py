@@ -4,16 +4,26 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
-from orkafin.domain.actions import ActionConfirmation, ActionExecutionResult, ActionProposal
+from orkafin.domain.actions import (
+    ActionConfirmation,
+    ActionConfirmationStatus,
+    ActionExecutionResult,
+    ActionProposal,
+    ActionProposalStatus,
+)
 from orkafin.domain.audit import AuditRecord
 from orkafin.domain.conversations import Conversation, Message
 from orkafin.domain.events import UserEvent
 from orkafin.domain.recommendations import Recommendation, RecommendationFeedback
 from orkafin.infrastructure.database.models import (
+    ActionConfirmationModel,
+    ActionProposalModel,
     AuditRecordModel,
     ConversationModel,
     MessageModel,
@@ -24,8 +34,10 @@ from orkafin.infrastructure.database.models import (
     UserEventModel,
 )
 from orkafin.infrastructure.database.serializers import (
+    action_confirmation_domain,
     action_confirmation_model,
     action_execution_model,
+    action_proposal_domain,
     action_proposal_model,
     audit_record_model,
     conversation_domain,
@@ -203,8 +215,61 @@ class OrkaFinRepository:
     def add_action_proposal(self, value: ActionProposal) -> None:
         self._session.add(action_proposal_model(value))
 
+    def get_action_proposal(self, proposal_id: str) -> ActionProposal | None:
+        stored = self._session.get(ActionProposalModel, proposal_id)
+        return action_proposal_domain(stored) if stored is not None else None
+
     def add_action_confirmation(self, value: ActionConfirmation) -> None:
         self._session.add(action_confirmation_model(value))
+
+    def get_action_confirmation_for_proposal(self, proposal_id: str) -> ActionConfirmation | None:
+        stored = self._session.scalar(
+            select(ActionConfirmationModel).where(
+                ActionConfirmationModel.proposal_id == proposal_id
+            )
+        )
+        return action_confirmation_domain(stored) if stored is not None else None
+
+    def transition_action_proposal(
+        self,
+        *,
+        proposal_id: str,
+        expected_status: ActionProposalStatus,
+        new_status: ActionProposalStatus,
+    ) -> bool:
+        result = cast(
+            CursorResult[Any],
+            self._session.execute(
+                update(ActionProposalModel)
+                .where(
+                    ActionProposalModel.proposal_id == proposal_id,
+                    ActionProposalModel.status == expected_status.value,
+                )
+                .values(status=new_status.value)
+            ),
+        )
+        return result.rowcount == 1
+
+    def transition_action_confirmation(
+        self,
+        *,
+        confirmation_id: str,
+        expected_status: ActionConfirmationStatus,
+        new_status: ActionConfirmationStatus,
+        responded_at: datetime,
+    ) -> bool:
+        result = cast(
+            CursorResult[Any],
+            self._session.execute(
+                update(ActionConfirmationModel)
+                .where(
+                    ActionConfirmationModel.confirmation_id == confirmation_id,
+                    ActionConfirmationModel.status == expected_status.value,
+                )
+                .values(status=new_status.value, responded_at=responded_at)
+            ),
+        )
+        return result.rowcount == 1
 
     def add_action_execution(self, value: ActionExecutionResult) -> None:
         self._session.add(action_execution_model(value))

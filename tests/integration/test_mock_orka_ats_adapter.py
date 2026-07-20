@@ -157,6 +157,34 @@ def test_limited_viewer_sees_reduced_summary_and_search_fields_are_filtered() ->
     asyncio.run(exercise())
 
 
+def test_admin_sees_only_the_enabled_action_on_candidate_profile() -> None:
+    async def exercise() -> None:
+        adapter = MockOrkaATSAdapter()
+        identity, context = await _identity_and_context(adapter, "admin")
+        actions = await adapter.get_available_actions(
+            GetAvailableActionsRequest(
+                request_id=REQUEST_ID,
+                app_id="orka_ats",
+                trusted_identity=identity,
+                context=context,
+            )
+        )
+        assert actions.action_ids == ("candidate.update_start_date",)
+
+        dashboard_context = context.model_copy(update={"page_id": "candidate_dashboard"})
+        dashboard_actions = await adapter.get_available_actions(
+            GetAvailableActionsRequest(
+                request_id=REQUEST_ID,
+                app_id="orka_ats",
+                trusted_identity=identity,
+                context=dashboard_context,
+            )
+        )
+        assert dashboard_actions.action_ids == ()
+
+    asyncio.run(exercise())
+
+
 def test_private_and_archived_candidates_remain_indistinguishable_from_missing() -> None:
     async def exercise() -> None:
         adapter = MockOrkaATSAdapter()

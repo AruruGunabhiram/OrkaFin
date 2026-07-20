@@ -38,8 +38,9 @@ validation commands.
 - Use structured deterministic retrieval and a deterministic response provider by
   default. An external model is optional and is never an authorization or action
   authority.
-- Deliver grounded guidance and recommendations. One mock-only confirmed action is
-  an optional extension after a separate human checkpoint and all safety gates.
+- Deliver grounded guidance and recommendations. Prompt 18 implements one
+  mock-only action through confirmation, with execution disabled pending a
+  separate human checkpoint and remaining safety gates.
 - Use explicit mock identities locally. A mock identity is not production
   authentication and proves nothing about a live Apps Script deployment.
 
@@ -55,6 +56,7 @@ The local V1 source-of-truth documents are:
 - [Future migration plan](docs/FUTURE_MIGRATION_PLAN.md)
 - [Domain model and ownership contracts](docs/DOMAIN_MODEL.md)
 - [Event, action, and audit persistence model](docs/EVENT_AND_AUDIT_MODEL.md)
+- [Action proposal and confirmation review](docs/ACTION_AND_CONFIRMATION_FLOW.md)
 - [ADR-001: local-first architecture](docs/adr/ADR-001-local-first-architecture.md)
 - [ADR-002: application data ownership](docs/adr/ADR-002-application-data-ownership.md)
 - [ADR-003: no vector database for initial V1](docs/adr/ADR-003-no-vector-database-for-initial-v1.md)

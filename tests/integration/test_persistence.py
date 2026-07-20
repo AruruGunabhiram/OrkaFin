@@ -142,7 +142,8 @@ def test_fresh_migration_creates_only_approved_orkafin_tables(tmp_path: Path) ->
     config.set_main_option("sqlalchemy.url", f"sqlite:///{database_path}")
 
     command.upgrade(config, "head")
-    table_names = set(inspect(Database(f"sqlite:///{database_path}").engine).get_table_names())
+    inspector = inspect(Database(f"sqlite:///{database_path}").engine)
+    table_names = set(inspector.get_table_names())
 
     assert "candidates" not in table_names
     assert {
@@ -157,6 +158,11 @@ def test_fresh_migration_creates_only_approved_orkafin_tables(tmp_path: Path) ->
         "action_executions",
         "audit_records",
     } <= table_names
+    confirmation_indexes = {
+        index["name"]: index for index in inspector.get_indexes("action_confirmations")
+    }
+    assert confirmation_indexes["uq_action_confirmations_proposal_id"]["unique"] == 1
+    assert confirmation_indexes["uq_action_confirmations_secret_hash"]["unique"] == 1
     command.downgrade(config, "base")
 
 

@@ -12,8 +12,9 @@ web, access Google Sheets, generate content, or infer missing features or steps.
 
 OrkaATS still owns candidate data, visibility decisions, business rules,
 permissions, and writes. A catalog permission is only a known permission name; it
-does not grant access. The disabled `candidate.update_start_date` entry is a
-non-executable placeholder pending Q-006 and Q-007 approval.
+does not grant access. Prompt 18 activates `candidate.update_start_date` version
+`1.0.0` only for mock proposal/confirmation. Execution remains disabled pending
+the Q-007 and Prompt 19 review.
 
 ## Catalog layout and identity
 

@@ -1,7 +1,7 @@
 # Local V1 Decisions, Assumptions, and Open Questions
 
-**Status:** Decision set frozen for Prompt 1 human review  
-**Last updated:** 2026-07-13
+**Status:** Prompt 18 confirmation-only action extension implemented; human review pending
+**Last updated:** 2026-07-19
 
 ## How to use this record
 
@@ -57,6 +57,7 @@ The architecture decision records are:
 | D-025 | Assistant output uses closed response kinds with mechanical grounding rules, and successful action results require a matching owning-adapter receipt. | Makes unavailable/refusal behavior and the no-fabricated-success rule structural. |
 | D-026 | The future OrkaATS Apps Script boundary uses wire schema `v1` over the unchanged general adapter contract `1.0.0`, through an injected transport. The shell is disabled by default, requires an explicit HTTPS endpoint and bounded timeout/response size, and contains no network client, URL, secret, or production authentication. | Makes HTTP replaceable and locally mockable without coupling core services or falsely claiming a secure live integration. |
 | D-027 | Mock, browser-local, controlled HTTPS tunnel, and later hosted API are distinct integration modes. Browser claims remain untrusted; Apps Script server-side code cannot reach a developer laptop through `localhost`; a tunnel is synthetic-data-only temporary testing, not production architecture. | Prevents local connectivity techniques from being mistaken for identity proof, deployment, or an approved live data path. |
+| D-028 | Prompt 18 enables proposal and one-time confirmation for `candidate.update_start_date` version `1.0.0` in mock mode only. Confirmation may become execution-ready but execution remains disabled pending a separate Prompt 19 approval. | Resolves Q-006 only for the preparation checkpoint without broadening OrkaFin write authority. |
 
 The Prompt 4 field shapes, module paths, ID patterns, and handling table are in
 [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md). These entries clarify existing boundaries;
@@ -104,8 +105,8 @@ clearly labeled provisional fixture only when its checkpoint requires review.
 | Q-003 | How are record assignments/project/workspace visibility represented independently of role? | OrkaATS owner; Prompt 7 checkpoint | Blocks final record-access policy |
 | Q-004 | In each Apps Script deployment mode, who executes the app, when is active-user identity available, and how is the assertion authenticated to OrkaFin? | Platform/security owner; before live adapter | Blocks live Apps Script integration and every production identity claim |
 | Q-005 | What controlled HTTPS endpoint and server-to-server authentication/replay protocol will live Apps Script use? | Platform/security owner; before live adapter | Blocks live connectivity; local mock remains allowed |
-| Q-006 | Will the optional action POC be included, and is `candidate.update_start_date` the selected low-risk action? | OrkaATS product + security; before Prompt 18 | Blocks Prompt 18/19 only; mandatory V1 may skip it |
-| Q-007 | If Q-006 is approved, what are start-date format, timezone/partial-date rules, allowed states, validation, reversibility, and receipt semantics? | OrkaATS product/engineering; before Prompt 18 | Blocks action schema and execution |
+| Q-006 | Resolved for Prompt 18: include the optional POC and select `candidate.update_start_date` in mock mode. | Prompt 18 request; exact implementation review pending | Proposal/confirmation may be reviewed; execution remains blocked |
+| Q-007 | Prompt 18 provisionally accepts one real complete `YYYY-MM-DD` value different from the visible current value. Allowed business states/ranges, concurrency, rollback, reversibility guarantees, execution authentication, and receipt semantics remain unresolved. | OrkaATS product/engineering + security; before Prompt 19 | Does not block confirmation-only preparation; blocks execution |
 | Q-008 | What are retention/deletion periods for conversations, events, feedback, proposals, receipts, and audits? | Product/privacy/security; before non-local deployment | V1 must minimize and document fixture cleanup; blocks production claim |
 | Q-009 | Who owns and approves feature, page, help, and action catalog revisions, and how is staleness signaled? | Product owner; Prompt 6 checkpoint | Blocks declaring knowledge production-ready |
 | Q-010 | Which meaningful events may be collected and which metadata fields are prohibited? | Product/privacy; before Prompt 17 | Blocks final event schema/policy |
@@ -134,6 +135,19 @@ invariants are in `docs/FUTURE_MIGRATION_PLAN.md`.
 Until the outcome is recorded as approved, human review is the only issue that
 blocks Prompt 2. Questions Q-001 through Q-013 are intentionally routed to later
 checkpoints and must not be accidentally decided during scaffolding.
+
+## Prompt 18 action review record
+
+The complete review artifact is
+[`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md).
+
+| Field | Value |
+|---|---|
+| Reviewer | Pending |
+| Review date | Pending |
+| Outcome | Pending: approve for Prompt 19, approve with conditions, or reject execution |
+| Selected action | `candidate.update_start_date` version `1.0.0`, mock only |
+| Conditions/notes | Execution is disabled and no state change has occurred |
 
 ## Verification steps
 

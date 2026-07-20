@@ -48,6 +48,13 @@ class ErrorCode(StrEnum):
     APP_NOT_SUPPORTED = "app_not_supported"
     PAGE_NOT_SUPPORTED = "page_not_supported"
     ADAPTER_UNAVAILABLE = "adapter_unavailable"
+    ACTION_NOT_AVAILABLE = "action_not_available"
+    ACTION_ACCESS_DENIED = "action_access_denied"
+    ACTION_INPUT_INVALID = "action_input_invalid"
+    ACTION_PROPOSAL_NOT_FOUND = "action_proposal_not_found"
+    ACTION_CONFIRMATION_INVALID = "action_confirmation_invalid"
+    ACTION_CONFIRMATION_EXPIRED = "action_confirmation_expired"
+    ACTION_STATE_CONFLICT = "action_state_conflict"
     INTERNAL_ERROR = "internal_error"
 
 

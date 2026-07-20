@@ -50,12 +50,48 @@ export function mountAssistantWidget(root, { context, transport, document = wind
     }
   }
 
+  async function proposeStartDate(startDate) {
+    if (!startDate || state.getSnapshot().isActionSending) return;
+    state.beginActionProposal();
+    try {
+      const result = await client.proposeAction({
+        context: state.getSnapshot().context,
+        startDate,
+      });
+      state.receiveActionProposal(result);
+    } catch (error) {
+      state.failAction(error);
+    }
+  }
+
+  async function resolveActionConfirmation(decision) {
+    const proposal = state.getSnapshot().actionProposal;
+    if (!proposal || state.getSnapshot().isActionSending) return;
+    const change = proposal.preview?.changes?.[0];
+    state.beginActionConfirmation(decision);
+    try {
+      const result = await client.confirmAction({
+        proposalId: proposal.proposal_id,
+        context: state.getSnapshot().context,
+        startDate: change?.new_value,
+        confirmationToken: proposal.confirmation.confirmation_token,
+        decision,
+      });
+      state.receiveActionConfirmation(result);
+    } catch (error) {
+      state.failAction(error);
+    }
+  }
+
   const unsubscribe = createAssistantRenderer({
     document,
     root,
     state,
     onSend: sendQuestion,
     onFeedback: submitRecommendationFeedback,
+    onProposeAction: proposeStartDate,
+    onConfirmAction: () => resolveActionConfirmation("accept"),
+    onCancelAction: () => resolveActionConfirmation("reject"),
     onReset: () => {
       conversationId = null;
       state.reset();

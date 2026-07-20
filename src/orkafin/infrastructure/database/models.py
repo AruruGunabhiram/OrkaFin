@@ -9,7 +9,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from orkafin.infrastructure.database.base import Base
@@ -239,6 +248,8 @@ class ActionConfirmationModel(Base):
             name="ck_action_confirmations_status",
         ),
         Index("ix_action_confirmations_proposal", "proposal_id"),
+        UniqueConstraint("proposal_id", name="uq_action_confirmations_proposal_id"),
+        UniqueConstraint("confirmation_secret_hash", name="uq_action_confirmations_secret_hash"),
     )
 
     confirmation_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -294,7 +305,8 @@ class AuditRecordModel(Base):
     __table_args__ = (
         CheckConstraint(
             "event_type IN ('identity_verified', 'identity_denied', 'candidate_read', "
-            "'permission_denied', 'action_proposed', 'action_confirmation_issued', "
+            "'permission_denied', 'action_permission_checked', 'action_proposed', "
+            "'action_confirmation_issued', "
             "'action_confirmed', 'action_confirmation_rejected', 'action_confirmation_expired', "
             "'action_tampering_rejected', 'action_execution_attempted', "
             "'action_execution_succeeded', 'action_execution_failed', 'action_execution_unknown')",

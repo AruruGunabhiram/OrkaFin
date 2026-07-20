@@ -4,10 +4,10 @@ actions:
       schema_version: v1
       action_id: candidate.update_start_date
       owner_app_id: orka_ats
-      action_version: 0.1.0
-      revision: rev-001
+      action_version: 1.0.0
+      revision: rev-002
       title: Update start date
-      description: Disabled provisional action contract pending explicit OrkaATS approval.
+      description: Mock-only preparation and confirmation for one candidate start-date update; execution is disabled.
       target_entity_type: candidate
       required_permission: candidate.update_start_date
       parameters:
@@ -18,25 +18,48 @@ actions:
           required: true
           sensitive: false
           description: Proposed calendar date owned and validated by OrkaATS.
+          validation_rules:
+            - Accept exactly one complete ISO 8601 calendar date in YYYY-MM-DD form.
+            - Reject a proposed date equal to the current permitted start-date value.
       confirmation_required: true
       admin_approval_required: false
       reversible: true
       sensitivity: low
+      execution_mode: mock_only
+      validation_rules:
+        - Accept exactly one complete ISO 8601 calendar date in YYYY-MM-DD form.
+        - Reject a proposed date equal to the current permitted start-date value.
+        - Require a currently visible candidate and visible current start-date value for preview.
       audit_required: true
-      status: disabled
+      audit_field_ids:
+        - actor_user_id
+        - workspace_id
+        - target_candidate_id
+        - action_id
+        - action_version
+        - proposal_id
+        - request_id
+        - outcome
+        - reason_code
+      failure_behavior: fail_closed_without_execution
+      status: active
       safe_reference: catalog://orka_ats/actions/candidate.update_start_date
     aliases: [update_start_date]
-    purpose: Preserve a non-executable placeholder until action approval and business rules are confirmed.
-    supported_roles: []
-    page_ids: []
-    feature_ids: []
+    purpose: Prepare and confirm one bounded mock action while leaving all execution disabled for human review.
+    supported_roles:
+      - schema_version: v1
+        role_id: administrator
+        display_name: Administrator
+        owner_app_id: orka_ats
+    page_ids: [candidate_profile]
+    feature_ids: [candidate_profile_review]
     related_action_ids: []
     provenance:
       schema_version: v1
-      content_version: 0.1.0
-      revision: rev-001
-      status: disabled
+      content_version: 1.0.0
+      revision: rev-002
+      status: active
       verification_status: provisional
       documentation_owner: OrkaATS product owner
-      last_reviewed_at: 2026-07-13T20:00:00Z
+      last_reviewed_at: 2026-07-19T18:00:00Z
       safe_reference: catalog://orka_ats/actions/candidate.update_start_date

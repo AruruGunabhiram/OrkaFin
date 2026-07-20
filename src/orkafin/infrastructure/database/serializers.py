@@ -7,9 +7,18 @@ the absence of browser-only or candidate-summary fields before this boundary.
 
 from __future__ import annotations
 
+import json
 from typing import Any, cast
 
-from orkafin.domain.actions import ActionConfirmation, ActionExecutionResult, ActionProposal
+from pydantic import TypeAdapter
+
+from orkafin.domain.actions import (
+    ActionConfirmation,
+    ActionExecutionResult,
+    ActionParameter,
+    ActionPreview,
+    ActionProposal,
+)
 from orkafin.domain.audit import AuditRecord
 from orkafin.domain.base import SchemaVersion
 from orkafin.domain.conversations import Conversation, Message
@@ -208,6 +217,42 @@ def action_proposal_model(value: ActionProposal) -> ActionProposalModel:
     )
 
 
+def action_proposal_domain(value: ActionProposalModel) -> ActionProposal:
+    from orkafin.domain.actions import ActionProposalStatus
+    from orkafin.domain.context import SelectedEntityRef, WorkspaceRef
+    from orkafin.domain.identifiers import IdempotencyKey, RequestId, Sha256Digest
+
+    parameters = TypeAdapter(tuple[ActionParameter, ...]).validate_json(
+        json.dumps(value.parameters_json)
+    )
+    preview = ActionPreview.model_validate_json(json.dumps(value.preview_json))
+    return ActionProposal(
+        schema_version=cast(SchemaVersion, value.schema_version),
+        proposal_id=value.proposal_id,
+        action_id=value.action_id,
+        action_version=value.action_version,
+        owner_app_id=value.owner_app_id,
+        status=ActionProposalStatus(value.status),
+        proposed_by_user_id=value.proposed_by_user_id,
+        workspace=WorkspaceRef(
+            workspace_id=value.workspace_id,
+            app_id=value.workspace_app_id,
+        ),
+        target=SelectedEntityRef(
+            app_id=value.target_app_id,
+            entity_type=value.target_entity_type,
+            entity_id=value.target_entity_id,
+        ),
+        parameters=parameters,
+        parameter_hash=Sha256Digest(root=value.parameter_hash),
+        preview=preview,
+        idempotency_key=IdempotencyKey(root=value.idempotency_key),
+        request_id=RequestId(root=value.request_id),
+        created_at=_utc(value.created_at),
+        expires_at=_utc(value.expires_at),
+    )
+
+
 def action_confirmation_model(value: ActionConfirmation) -> ActionConfirmationModel:
     return ActionConfirmationModel(
         confirmation_id=value.confirmation_id,
@@ -221,6 +266,25 @@ def action_confirmation_model(value: ActionConfirmation) -> ActionConfirmationMo
         issued_at=value.issued_at,
         expires_at=value.expires_at,
         responded_at=value.responded_at,
+    )
+
+
+def action_confirmation_domain(value: ActionConfirmationModel) -> ActionConfirmation:
+    from orkafin.domain.actions import ActionConfirmationStatus
+    from orkafin.domain.identifiers import Sha256Digest
+
+    return ActionConfirmation(
+        schema_version=cast(SchemaVersion, value.schema_version),
+        confirmation_id=value.confirmation_id,
+        proposal_id=value.proposal_id,
+        status=ActionConfirmationStatus(value.status),
+        bound_user_id=value.bound_user_id,
+        bound_workspace_id=value.bound_workspace_id,
+        parameter_hash=Sha256Digest(root=value.parameter_hash),
+        confirmation_secret_hash=Sha256Digest(root=value.confirmation_secret_hash),
+        issued_at=_utc(value.issued_at),
+        expires_at=_utc(value.expires_at),
+        responded_at=_utc(value.responded_at) if value.responded_at is not None else None,
     )
 
 

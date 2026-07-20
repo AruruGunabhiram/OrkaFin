@@ -14,6 +14,11 @@ export function createAssistantState(initialContext) {
     response: null,
     recommendation: null,
     recommendationNotice: "",
+    isActionSending: false,
+    actionProposal: null,
+    actionResult: null,
+    actionError: null,
+    actionStatus: "Execution is disabled in this proof of concept.",
     error: null,
     status: "Assistant closed.",
   };
@@ -41,7 +46,14 @@ export function createAssistantState(initialContext) {
       publish({ question, error: null });
     },
     setContext(context) {
-      publish({ context: { ...context }, error: null });
+      publish({
+        context: { ...context },
+        actionProposal: null,
+        actionResult: null,
+        actionError: null,
+        actionStatus: "Context changed. Any prior confirmation challenge was cleared.",
+        error: null,
+      });
     },
     beginRequest(question) {
       publish({
@@ -79,6 +91,47 @@ export function createAssistantState(initialContext) {
           : "Feedback saved.";
       publish({ recommendation: null, recommendationNotice: notice });
     },
+    beginActionProposal() {
+      publish({
+        isActionSending: true,
+        actionProposal: null,
+        actionResult: null,
+        actionError: null,
+        actionStatus: "Preparing a confirmation-only preview.",
+      });
+    },
+    receiveActionProposal(result) {
+      publish({
+        isActionSending: false,
+        actionProposal: result,
+        actionResult: null,
+        actionError: null,
+        actionStatus: "Review the exact preview, then confirm or cancel.",
+      });
+    },
+    beginActionConfirmation(decision) {
+      publish({
+        isActionSending: true,
+        actionError: null,
+        actionStatus: decision === "accept" ? "Confirming intent only." : "Cancelling intent.",
+      });
+    },
+    receiveActionConfirmation(result) {
+      publish({
+        isActionSending: false,
+        actionProposal: null,
+        actionResult: result,
+        actionError: null,
+        actionStatus: result.message,
+      });
+    },
+    failAction(error) {
+      publish({
+        isActionSending: false,
+        actionError: error,
+        actionStatus: `${error.message} No action was executed.`,
+      });
+    },
     fail(error) {
       publish({ isSending: false, error, status: error.message });
     },
@@ -87,6 +140,11 @@ export function createAssistantState(initialContext) {
         isSending: false,
         question: "",
         response: null,
+        isActionSending: false,
+        actionProposal: null,
+        actionResult: null,
+        actionError: null,
+        actionStatus: "Execution is disabled in this proof of concept.",
         error: null,
         status: "Conversation reset.",
       });

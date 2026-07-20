@@ -336,7 +336,7 @@ def test_action_requires_permission_availability_and_record_visibility() -> None
     )
 
     assert recruiter.code is AuthorizationDecisionCode.PERMISSION_MISSING
-    assert admin.code is AuthorizationDecisionCode.ACTION_ACCESS_DENIED
+    assert admin.code is AuthorizationDecisionCode.ALLOWED
 
 
 def test_unknown_permissions_and_omitted_trusted_facts_deny_by_default() -> None:

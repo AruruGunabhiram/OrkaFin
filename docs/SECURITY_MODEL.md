@@ -1,6 +1,6 @@
 # Local V1 Security Model
 
-**Status:** Prompt 14 prompt/output controls implemented; human security review required before Prompt 15
+**Status:** Prompt 18 confirmation-only controls implemented; human review required before Prompt 19
 **Security posture:** Local pilot with explicit mocks; not production authentication
 
 ## Security objectives
@@ -196,8 +196,9 @@ future adversarial evaluation.
 
 ## Optional action security
 
-Actions are disabled in the mandatory path. If the optional proof of concept is
-approved, exactly one typed, versioned action may be enabled. The controls are:
+Prompt 18 enables preparation and confirmation for exactly one typed, versioned,
+mock-only action: `candidate.update_start_date`. Execution remains disabled. The
+implemented controls are:
 
 1. Catalog allowlisting and strict per-action input schema; no arbitrary tool name
    or dictionary executor.
@@ -218,6 +219,12 @@ approved, exactly one typed, versioned action may be enabled. The controls are:
 
 Frontend code can display an action preview but cannot set confirmation state,
 permission, execution result, or audit outcome.
+
+The proposal and confirmation endpoint details, canonical hash, TTL, exact preview,
+audits, and state diagram are in
+[`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md). Prompt 18 does
+not advertise mock adapter execution capability, call an execution method, create
+an execution record, or claim a candidate change.
 
 ## API, browser, and CORS controls
 

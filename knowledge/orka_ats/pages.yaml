@@ -49,7 +49,7 @@ pages:
     instruction_steps: []
     related_page_ids: [candidate_list]
     related_feature_ids: [candidate_directory]
-    available_action_ids: []
+    available_action_ids: [candidate.update_start_date]
     provenance:
       <<: *page_provenance_dashboard
       safe_reference: catalog://orka_ats/pages/candidate_profile

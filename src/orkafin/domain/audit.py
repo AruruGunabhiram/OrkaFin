@@ -29,6 +29,7 @@ class AuditEventType(StrEnum):
     IDENTITY_DENIED = "identity_denied"
     CANDIDATE_READ = "candidate_read"
     PERMISSION_DENIED = "permission_denied"
+    ACTION_PERMISSION_CHECKED = "action_permission_checked"
     ACTION_PROPOSED = "action_proposed"
     ACTION_CONFIRMATION_ISSUED = "action_confirmation_issued"
     ACTION_CONFIRMED = "action_confirmed"

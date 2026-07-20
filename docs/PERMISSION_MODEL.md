@@ -142,9 +142,18 @@ action, or authorize any write.
 ## Action boundary
 
 An allowed evaluator result is necessary but never sufficient to mutate state.
-Prompt 7 implements no endpoint or executor. Any future action still requires an
-active catalog definition, current adapter availability/business eligibility,
-record visibility, exact permission, preview, user confirmation, immediate
+Prompt 18 adds proposal and confirmation endpoints but no executor. The mock
+administrator alone has both `candidate.update_start_date` and current
+adapter-advertised availability for the selected visible candidate. Recruiter and
+limited-viewer fixtures remain denied. Proposal requires the permission, action
+availability, exact candidate grant, and a visible typed `start_date` value.
+Acceptance repeats those checks after binding the current verified
+user/workspace/target to the issued confirmation.
+
+This is a provisional mock policy for human review, not a role-derived production
+grant. Role still creates no permission. Cancellation remains available to the
+bound user without requiring continued action permission because it cannot widen
+access or execute. Any future execution still requires immediate authoritative
 revalidation, owning-adapter execution, receipt validation, and audit logging.
 
 ## Human review checkpoint
@@ -158,7 +167,8 @@ reviewer decide the following provisional choices:
   independently of role (Q-003);
 - the authoritative field IDs, whether field names are themselves sensitive, and
   the admin/recruiter/limited-viewer matrix (Q-002);
-- whether admin should hold the disabled action permission in fixtures;
+- whether the Prompt 18 administrator action permission/availability should be
+  approved for the mock-only confirmation POC;
 - whether notes capability should remain entirely inactive, and what additional
   review would be required before any adapter can supply an excerpt.
 

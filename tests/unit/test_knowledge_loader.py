@@ -6,7 +6,7 @@ from shutil import copytree
 import pytest
 import yaml
 
-from orkafin.domain.catalog import VerificationStatus
+from orkafin.domain.catalog import CatalogStatus, VerificationStatus
 from orkafin.knowledge import KnowledgeValidationError, load_knowledge
 
 
@@ -45,6 +45,18 @@ def test_loads_valid_starter_catalog_with_stable_counts(tmp_path: Path) -> None:
     assert index.help_by_id["help_recruitment_pipeline"].provenance.verification_status is (
         VerificationStatus.PROVISIONAL
     )
+    action = index.actions_by_id["candidate.update_start_date"].action
+    assert action.status is CatalogStatus.ACTIVE
+    assert action.action_version == "1.0.0"
+    assert action.owner_app_id == "orka_ats"
+    assert action.required_permission.root == "candidate.update_start_date"
+    assert [parameter.parameter_id for parameter in action.parameters] == ["start_date"]
+    assert action.validation_rules
+    assert action.confirmation_required is True
+    assert action.reversible is True
+    assert action.execution_mode == "mock_only"
+    assert action.audit_field_ids
+    assert action.failure_behavior == "fail_closed_without_execution"
 
 
 def test_rejects_duplicate_ids(tmp_path: Path) -> None:

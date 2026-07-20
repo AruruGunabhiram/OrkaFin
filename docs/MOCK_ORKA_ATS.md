@@ -30,8 +30,9 @@ summaries or events.
 Supported pages are `candidate_dashboard`, `candidate_list`,
 `candidate_profile`, `recruitment_pipeline`, `candidate_creation_form`, and
 `recruiter_filters`. Features are calculated from the verified user and current
-page. No actions are enabled: `execute_approved_action` is an explicit unsupported
-stub, even for the admin fixture.
+page. Prompt 18 advertises `candidate.update_start_date` only to the eligible admin
+fixture so OrkaFin can prepare and confirm it. `execute_approved_action` remains an
+explicit unsupported stub and is not advertised as a mock capability.
 
 ## Reset and failure simulation
 
