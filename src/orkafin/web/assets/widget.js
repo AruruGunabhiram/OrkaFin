@@ -77,9 +77,24 @@ export function mountAssistantWidget(root, { context, transport, document = wind
         confirmationToken: proposal.confirmation.confirmation_token,
         decision,
       });
-      state.receiveActionConfirmation(result);
+      state.receiveActionConfirmation(result, proposal.proposal_id);
     } catch (error) {
       state.failAction(error);
+    }
+  }
+
+  async function executeApprovedAction() {
+    const proposalId = state.getSnapshot().executionProposalId;
+    if (!proposalId || state.getSnapshot().isActionSending) return;
+    state.beginActionExecution();
+    try {
+      const result = await client.executeAction({
+        proposalId,
+        context: state.getSnapshot().context,
+      });
+      state.receiveActionExecution(result);
+    } catch (error) {
+      state.failAction(error, "execution");
     }
   }
 
@@ -92,6 +107,7 @@ export function mountAssistantWidget(root, { context, transport, document = wind
     onProposeAction: proposeStartDate,
     onConfirmAction: () => resolveActionConfirmation("accept"),
     onCancelAction: () => resolveActionConfirmation("reject"),
+    onExecuteAction: executeApprovedAction,
     onReset: () => {
       conversationId = null;
       state.reset();

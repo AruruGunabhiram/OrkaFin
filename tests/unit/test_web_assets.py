@@ -30,7 +30,8 @@ def test_local_demo_and_static_widget_assets_are_served() -> None:
 
     assert "OrkaFin local test mode" in demo
     assert "mountAssistantWidget" in widget
-    assert "Execution disabled" in renderer
+    assert "Execute approved update" in renderer
+    assert "real OrkaATS and its Google Sheet are not connected" in renderer
 
 
 def test_widget_static_files_do_not_contain_credentials_or_permission_claims() -> None:

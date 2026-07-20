@@ -1,6 +1,6 @@
 # OrkaATS Apps Script Adapter Contract
 
-**Status:** Prompt 10 transport boundary; not a completed live integration
+**Status:** Prompt 19 mock execution implemented; live transport remains unproven
 
 **Wire schema:** `v1`
 
@@ -116,6 +116,12 @@ continue to depend only on `OrkaApplicationAdapter`.
 The remote deployment advertises only capabilities it implements. Unadvertised
 operations return `unsupported_capability`; they do not return empty success.
 
+Prompt 19 enables `execute_approved_action` only on `MockOrkaATSAdapter`. The
+application execution service additionally checks `fixture_mode` and exact adapter
+ID `mock_orka_ats`, so the existing Apps Script client shell cannot be selected by
+this V1 action endpoint. Its serialization tests remain contract tests, not proof
+that a remote write handler exists or is safe.
+
 ## Trusted identity assertions
 
 The public browser context contains only app/page navigation and optional selected
@@ -195,6 +201,30 @@ transaction/reference ID, explicit outcome, and UTC execution/receipt times. A
 failed receipt includes a safe failure code. A timeout after dispatch is ambiguous
 until reconciled; OrkaFin must not state either success or “no change” without an
 authoritative receipt.
+
+The versioned `ExecuteApprovedActionRequest` contains the adapter contract version,
+request ID, app ID, exact trusted identity and application context, active action
+definition, confirmed proposal, accepted confirmation, and the proposal's
+idempotency key. Its model rejects mismatched app, user, workspace ID/app, target,
+action/version, confirmation binding, or key before adapter code runs. Display
+labels are not security bindings and may be absent after persistence.
+
+The mock adapter then independently checks the sole action ID/version, explicit
+permission, current available-action fact, candidate visibility, exact date
+parameter shape, recomputed parameter hash, previewed old value, no-op rule, and
+adapter-owned idempotency record. Its receipt is accepted by OrkaFin only when all
+of these match the reserved execution:
+
+- adapter identity and owner app;
+- action ID and version;
+- target app/type/ID;
+- request ID and idempotency key;
+- response/receipt timestamp ordering; and
+- explicit `succeeded` or typed `failed` outcome.
+
+A mismatched or malformed success-shaped receipt is an ambiguous `unknown` result
+and is not persisted as evidence of success. The mock may already have changed
+state, so the safe response does not claim that no change occurred.
 
 ## Limits and compatibility
 

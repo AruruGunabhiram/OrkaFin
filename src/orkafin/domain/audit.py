@@ -37,9 +37,11 @@ class AuditEventType(StrEnum):
     ACTION_CONFIRMATION_EXPIRED = "action_confirmation_expired"
     ACTION_TAMPERING_REJECTED = "action_tampering_rejected"
     ACTION_EXECUTION_ATTEMPTED = "action_execution_attempted"
+    ACTION_ADAPTER_REQUESTED = "action_adapter_requested"
     ACTION_EXECUTION_SUCCEEDED = "action_execution_succeeded"
     ACTION_EXECUTION_FAILED = "action_execution_failed"
     ACTION_EXECUTION_UNKNOWN = "action_execution_unknown"
+    ACTION_FINAL_RESULT = "action_final_result"
 
 
 class AuditOutcome(StrEnum):

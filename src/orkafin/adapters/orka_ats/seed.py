@@ -5,17 +5,19 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from orkafin.adapters.orka_ats.state import (
+    MockOrkaATSStateStore,
+    default_mock_state_path,
+)
+
 
 def mock_state_path() -> Path:
-    return Path(__file__).resolve().parents[4] / "var" / "mock_orka_ats_state.json"
+    return default_mock_state_path()
 
 
 def reset_mock_state() -> Path:
-    """Create the empty adapter-owned state file without touching OrkaFin's database."""
-    state_path = mock_state_path()
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text('{"version": 1, "actions": []}\n', encoding="utf-8")
-    return state_path
+    """Reset adapter-owned values and receipts without touching OrkaFin's database."""
+    return MockOrkaATSStateStore(mock_state_path()).reset()
 
 
 def main() -> None:

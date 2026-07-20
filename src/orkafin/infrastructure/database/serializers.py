@@ -308,6 +308,40 @@ def action_execution_model(value: ActionExecutionResult) -> ActionExecutionModel
     )
 
 
+def action_execution_domain(value: ActionExecutionModel) -> ActionExecutionResult:
+    from orkafin.domain.actions import (
+        ActionExecutionStatus,
+        AdapterExecutionReceipt,
+    )
+    from orkafin.domain.context import SelectedEntityRef
+    from orkafin.domain.identifiers import IdempotencyKey, RequestId
+
+    receipt = (
+        AdapterExecutionReceipt.model_validate_json(json.dumps(value.adapter_receipt_json))
+        if value.adapter_receipt_json is not None
+        else None
+    )
+    return ActionExecutionResult(
+        schema_version=cast(SchemaVersion, value.schema_version),
+        execution_id=value.execution_id,
+        proposal_id=value.proposal_id,
+        action_id=value.action_id,
+        action_version=value.action_version,
+        owner_app_id=value.owner_app_id,
+        target=SelectedEntityRef(
+            app_id=value.target_app_id,
+            entity_type=value.target_entity_type,
+            entity_id=value.target_entity_id,
+        ),
+        status=ActionExecutionStatus(value.status),
+        request_id=RequestId(root=value.request_id),
+        idempotency_key=IdempotencyKey(root=value.idempotency_key),
+        adapter_receipt=receipt,
+        safe_message=value.safe_message,
+        completed_at=_utc(value.completed_at),
+    )
+
+
 def audit_record_model(value: AuditRecord) -> AuditRecordModel:
     target_app_id, target_entity_type, target_entity_id = _target_values(value.target)
     return AuditRecordModel(

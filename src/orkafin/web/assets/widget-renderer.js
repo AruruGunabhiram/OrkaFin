@@ -82,19 +82,50 @@ function renderActionControls(
   onProposeAction,
   onConfirmAction,
   onCancelAction,
+  onExecuteAction,
 ) {
   container.replaceChildren();
-  appendText(document, container, "h3", "assistant-action-title", "Confirmed action proof of concept");
+  appendText(document, container, "h3", "assistant-action-title", "Mock approved action");
   appendText(
     document,
     container,
     "p",
-    "assistant-action-disabled",
-    "Execution disabled — this flow can only prepare, preview, confirm, or cancel.",
+    "assistant-action-scope",
+    "Mock execution only — real OrkaATS and its Google Sheet are not connected.",
   );
 
-  if (snapshot.actionResult) {
-    appendText(document, container, "p", "assistant-action-result", snapshot.actionResult.message);
+  if (snapshot.actionExecution) {
+    const resultClass = snapshot.actionExecution.status === "succeeded"
+      ? "assistant-action-result"
+      : snapshot.actionExecution.status === "unknown"
+        ? "assistant-action-unknown"
+        : "assistant-action-error";
+    appendText(document, container, "p", resultClass, snapshot.actionExecution.safe_message);
+    if (snapshot.actionExecution.status === "unknown") {
+      appendText(
+        document,
+        container,
+        "p",
+        "assistant-action-idempotency",
+        `Reconciliation key: ${snapshot.actionExecution.idempotency_key}`,
+      );
+    }
+    return;
+  }
+  if (snapshot.actionConfirmation) {
+    appendText(document, container, "p", "assistant-action-confirmed", snapshot.actionConfirmation.message);
+    if (snapshot.executionProposalId) {
+      const execute = element(
+        document,
+        "button",
+        "assistant-action-execute",
+        snapshot.isActionSending ? "Executing…" : "Execute approved update",
+      );
+      execute.type = "button";
+      execute.disabled = snapshot.isActionSending;
+      execute.addEventListener("click", onExecuteAction);
+      container.append(execute);
+    }
     return;
   }
   if (snapshot.actionError) {
@@ -150,7 +181,7 @@ function renderActionControls(
   preview.warnings.forEach((warning) => appendText(document, warnings, "li", "", warning));
   container.append(warnings);
   const controls = element(document, "div", "assistant-action-controls");
-  const confirm = element(document, "button", "assistant-action-confirm", "Confirm intent only");
+  const confirm = element(document, "button", "assistant-action-confirm", "Confirm update");
   confirm.type = "button";
   confirm.disabled = snapshot.isActionSending;
   confirm.addEventListener("click", onConfirmAction);
@@ -171,6 +202,7 @@ export function createAssistantRenderer({
   onProposeAction,
   onConfirmAction,
   onCancelAction,
+  onExecuteAction,
   onReset,
 }) {
   root.replaceChildren();
@@ -250,6 +282,7 @@ export function createAssistantRenderer({
       onProposeAction,
       onConfirmAction,
       onCancelAction,
+      onExecuteAction,
     );
     if (snapshot.error) {
       response.replaceChildren();

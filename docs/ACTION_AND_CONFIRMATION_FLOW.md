@@ -1,128 +1,102 @@
-# Action Proposal and Confirmation Flow
+# Approved Mock Action Flow
 
-**Status:** Prompt 18 implemented; human approval required before Prompt 19
-**Selected action:** `candidate.update_start_date`
-**Execution mode:** Mock only
-**Execution status:** Disabled and not implemented
+**Status:** Prompt 19 implemented for local mock mode
+**Selected action:** `candidate.update_start_date` version `1.0.0`
+**Execution scope:** Isolated synthetic `MockOrkaATSAdapter` state only
+**Live OrkaATS / Apps Script / Google Sheet execution:** Not implemented or proven
 
-## Review boundary
+## Boundary
 
-Prompt 18 prepares one action, displays its exact effect, issues a confirmation
-challenge, and records an accepted or rejected intent. It does not call
-`execute_approved_action`, create an `action_executions` row, write mock OrkaATS
-state, or write any Google Sheet. A confirmed proposal is only
-`execution_ready=true`; every response also says `execution_enabled=false` and
-`execution_state=not_started`.
+OrkaFin can prepare, confirm, and execute exactly one catalogued action. It is not
+a generic tool runner. The action changes `var/mock_orka_ats_state.json`, which is
+owned by the mock adapter and excluded from version control. It never writes an
+OrkaFin candidate record or the OrkaATS Google Sheet.
 
-OrkaATS remains authoritative for candidate visibility, the current start-date
-value, action availability, permission, business validation, and any future
-write. For Prompt 18, adapter availability means the configured mock adapter can
-freshly resolve trusted identity, context, authorization, action availability,
-record visibility, and the current permitted field value. The mock adapter still
-does not advertise execution capability.
+OrkaATS remains authoritative for identity, workspace, candidate visibility,
+action permission, current candidate state, business validation, the write, and
+the execution receipt. OrkaFin reports success only from a schema-valid matching
+receipt returned by the selected mock adapter.
 
-## Versioned catalog entry
+## Exact action
 
-The only supported action is catalog version `1.0.0`, revision `rev-002`:
-
-| Property | Approved Prompt 18 value |
+| Property | Value |
 |---|---|
 | Action ID | `candidate.update_start_date` |
-| Owning app | `orka_ats` |
-| Target | One visible `candidate` |
+| Action version | `1.0.0` |
+| Owner | `orka_ats` |
+| Target | One visible `candidate` on `candidate_profile` |
 | Required permission | `candidate.update_start_date` |
-| Input schema | Exactly `{ "start_date": "YYYY-MM-DD" }`; extra fields forbidden |
-| Validation | Real complete ISO calendar date; must differ from the current visible value |
-| Confirmation | Required, one time, 256-bit random challenge |
-| Reversible | `true` (catalog assertion for the mock POC; execution semantics remain unapproved) |
-| Sensitivity | `low`; old/new preview values remain confidential and excluded from logs |
-| Execution mode | `mock_only` |
-| Failure behavior | `fail_closed_without_execution` |
-| Discovery scope | Administrator, candidate profile, candidate profile review feature |
+| Input | Exactly `{ "start_date": "YYYY-MM-DD" }` |
+| Preparation rules | Real ISO date; different from the currently visible value |
+| Confirmation | Required, expiring, one-time, hash-only persistence |
+| Execution | Mock adapter only; separate explicit click |
+| Reversible | Catalogued as reversible in mock mode only |
 
-The action catalog also declares the allowed audit field names. Catalog presence
-alone is insufficient: the service supports the exact action ID above, requires
-an active matching version/schema, and independently requires the adapter's
-current permission and available-action facts.
-
-The date rules are deliberately narrow preparation rules, not a claim that all
-otherwise valid dates satisfy OrkaATS business policy. Allowed employment states,
-date ranges, timezone/partial-date rules, concurrency behavior, rollback, and
-receipt semantics remain Prompt 19 review items. OrkaATS must revalidate them
-before any future write.
+No other action ID, parameter shape, target type, adapter, or execution mode is
+accepted.
 
 ## State machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Proposed: trusted checks pass + preview persisted
-    Proposed --> Confirmed: issued challenge accepted once
-    Proposed --> Cancelled: issued challenge explicitly rejected
-    Proposed --> Expired: proposal or challenge TTL elapsed
-    Confirmed --> [*]: Prompt 18 stops; execution disabled
-    Cancelled --> [*]: terminal
-    Expired --> [*]: terminal
+    [*] --> Proposed: trusted checks + exact preview
+    Proposed --> Confirmed: one-time challenge accepted
+    Proposed --> Cancelled: user rejects
+    Proposed --> Expired: challenge TTL elapsed
+    Confirmed --> Executed: valid successful adapter receipt
+    Confirmed --> Failed: rejected, failed, or unknown outcome
+    Executed --> Executed: API replay returns stored result; no adapter call
+    Failed --> Failed: API replay returns stored result; no adapter call
 
     state Confirmation {
         [*] --> Issued
-        Issued --> Accepted: exact token + parameters + binding
-        Issued --> Rejected: user cancel or safe revalidation failure
-        Issued --> Expired: TTL elapsed
-        Accepted --> [*]: not consumed by execution in Prompt 18
-        Rejected --> [*]
-        Expired --> [*]
+        Issued --> Accepted
+        Issued --> Rejected
+        Issued --> Expired
+        Accepted --> Consumed: execution reservation wins once
     }
 ```
 
-Proposal and confirmation status are separate database records. Conditional
-database updates accept transitions only from `proposal=proposed` and
-`confirmation=issued`; this provides one winner for duplicate/racing local
-requests. `confirmation=consumed` and `proposal=executed|failed` already exist as
-future contract states but no Prompt 18 code can enter them.
+The execution service inserts a unique execution reservation and atomically moves
+the confirmation from `accepted` to `consumed` before calling the adapter. A
+unique proposal constraint and the existing unique idempotency key ensure one
+execution row and one adapter request winner. If the process stops after the
+reservation, the durable result remains conservative `unknown` and is reconciled
+by the same idempotency key; it is never blindly retried.
 
 ## Request sequence
 
-```mermaid
-sequenceDiagram
-    participant W as Untrusted widget
-    participant F as OrkaFin action service
-    participant C as Trusted context service
-    participant A as Mock OrkaATS adapter
-    participant D as OrkaFin SQLite
+1. `POST /api/v1/action-proposals` resolves trusted identity, context,
+   permission, visibility, action availability, and current start date. It stores
+   the exact parameters and SHA-256 digest, then returns a preview and one-time
+   confirmation token.
+2. `POST /api/v1/action-proposals/{proposal_id}/confirmations` verifies the token,
+   parameter digest, user, workspace, target, TTL, catalog version, current
+   permission, and previewed old value. Acceptance makes the proposal
+   execution-ready but performs no write.
+3. The widget displays a separate `Execute approved update` button. It does not
+   execute automatically after confirmation.
+4. `POST /api/v1/action-proposals/{proposal_id}:execute` re-resolves trusted
+   identity and context, then rechecks candidate visibility, explicit action
+   permission, available action ID, current candidate value, active definition
+   version, exact stored parameter shape, and recomputed parameter hash.
+5. OrkaFin consumes the confirmation once, persists a reservation, and sends one
+   versioned `ExecuteApprovedActionRequest` with the current request ID and the
+   proposal's server-generated idempotency key.
+6. The mock adapter repeats permission, visibility, action/version, parameter
+   hash, expected-old-value, no-op, and idempotency validation. It atomically
+   updates its isolated state and returns a typed receipt.
+7. OrkaFin validates the response and receipt bindings before storing and
+   displaying the final result.
 
-    W->>F: POST action-proposals (action, date, context hint)
-    F->>C: Resolve fresh trusted context
-    C->>A: Identity, permission, action, record, safe current value
-    A-->>C: Filtered typed facts
-    C-->>F: Verified request-scoped context
-    F->>D: Permission audit
-    F->>D: Proposal + challenge hash + proposal/issued audits
-    F-->>W: Exact preview + plaintext challenge once
-    W->>F: POST confirmations (decision, same date, challenge, context hint)
-    F->>D: Load issued state; check TTL/hash/replay
-    F->>C: Re-resolve user/workspace/target and, for accept, permission/current value
-    C->>A: Fresh read-only trusted checks
-    A-->>C: Filtered typed facts
-    F->>D: Atomic accepted/rejected/expired transition + audit
-    F-->>W: Execution-ready or cancelled state; execution disabled
-    Note over F,A: execute_approved_action is never called
-```
+## Execution API
 
-Cancellation validates the challenge and user/workspace/target binding but does
-not require continued action permission, because withdrawing intent must remain a
-safe operation. Acceptance additionally revalidates catalog version, permission,
-current action availability, target visibility, and the previewed old value.
+### Request
 
-## API contract
-
-### Create proposal
-
-`POST /api/v1/action-proposals`
+`POST /api/v1/action-proposals/{proposal_id}:execute`
 
 ```json
 {
-  "action_id": "candidate.update_start_date",
-  "parameters": {"start_date": "2026-10-06"},
   "context": {
     "app_id": "orka_ats",
     "page": "candidate_profile",
@@ -131,152 +105,141 @@ current action availability, target visibility, and the previewed old value.
 }
 ```
 
-The request has no user, role, workspace, permission, available-action,
-parameter-hash, request-ID, or idempotency field. Those facts are trusted or
-server-created.
+The browser supplies no user, role, permission, workspace, action definition,
+parameter hash, request ID, idempotency key, execution outcome, or receipt.
 
-The exact synthetic review preview is:
-
-```json
-{
-  "action_id": "candidate.update_start_date",
-  "action_version": "1.0.0",
-  "owning_app_id": "orka_ats",
-  "owning_app_display_name": "Mock OrkaATS",
-  "target_candidate_id": "CAND-1042",
-  "affected_user_id": "mock-user-admin",
-  "affected_user_display_name": "Synthetic Administrator",
-  "affected_workspace_id": "workspace_recruiting_alpha",
-  "affected_workspace_display_name": "Synthetic Recruiting Alpha",
-  "summary": "Prepare a candidate start-date update for confirmation.",
-  "changes": [
-    {"field_label": "Start date", "old_value": "2026-08-17", "new_value": "2026-10-06"}
-  ],
-  "reversible": true,
-  "warnings": [
-    "Mock confirmation only: confirming does not update OrkaATS or candidate data.",
-    "Execution stays disabled until a separate Prompt 19 human approval.",
-    "OrkaATS must revalidate current permissions, state, and business rules before any future execution."
-  ]
-}
-```
-
-The response also contains `proposal_id`, `proposal_status=proposed`, both expiry
-timestamps, `execution_ready=false`, `execution_enabled=false`,
-`execution_state=not_started`, and the plaintext `confirmation_token`. It does
-not contain the parameter hash or confirmation-token hash.
-
-### Accept or cancel confirmation
-
-`POST /api/v1/action-proposals/{proposal_id}/confirmations`
+### Successful response
 
 ```json
 {
-  "decision": "accept",
-  "confirmation_token": "<one-time challenge from proposal response>",
-  "parameters": {"start_date": "2026-10-06"},
-  "context": {
-    "app_id": "orka_ats",
-    "page": "candidate_profile",
-    "selected_entity": {"type": "candidate", "id": "CAND-1042"}
-  }
+  "schema_version": "v1",
+  "execution": {
+    "schema_version": "v1",
+    "execution_id": "execution-...",
+    "proposal_id": "proposal-...",
+    "action_id": "candidate.update_start_date",
+    "action_version": "1.0.0",
+    "owner_app_id": "orka_ats",
+    "target": {
+      "schema_version": "v1",
+      "app_id": "orka_ats",
+      "entity_type": "candidate",
+      "entity_id": "CAND-1042"
+    },
+    "status": "succeeded",
+    "request_id": "00000000-0000-4000-8000-000000001903",
+    "idempotency_key": "action-...",
+    "adapter_receipt": {
+      "schema_version": "v1",
+      "receipt_id": "receipt-...",
+      "adapter_id": "mock_orka_ats",
+      "owner_app_id": "orka_ats",
+      "action_id": "candidate.update_start_date",
+      "action_version": "1.0.0",
+      "target": {
+        "schema_version": "v1",
+        "app_id": "orka_ats",
+        "entity_type": "candidate",
+        "entity_id": "CAND-1042"
+      },
+      "request_id": "00000000-0000-4000-8000-000000001903",
+      "idempotency_key": "action-...",
+      "adapter_transaction_reference": "mock-transaction-...",
+      "outcome": "succeeded",
+      "safe_failure_code": null,
+      "executed_at": "2026-07-13T20:00:00Z",
+      "received_at": "2026-07-13T20:00:00Z"
+    },
+    "safe_message": "Mock OrkaATS confirmed the candidate start date was updated.",
+    "completed_at": "2026-07-19T21:00:00Z"
+  },
+  "idempotent_replay": false
 }
 ```
 
-Use `decision=reject` for cancellation. An accepted response is:
+A duplicate endpoint call returns the original persisted execution with
+`idempotent_replay=true`. It does not call the adapter again.
 
-```json
-{
-  "proposal_status": "confirmed",
-  "confirmation_status": "accepted",
-  "execution_ready": true,
-  "execution_enabled": false,
-  "execution_state": "not_started",
-  "message": "Confirmation accepted and execution-ready. Execution is disabled; no action was executed."
-}
-```
+## Failure and reconciliation rules
 
-The confirmation response never echoes the plaintext challenge or either hash.
-
-## Hash, TTL, and idempotency design
-
-The parameter digest is SHA-256 over UTF-8 canonical JSON with sorted keys and no
-insignificant whitespace. The canonical object is the existing typed action
-parameter, including `schema_version=v1`, `kind=date`,
-`parameter_id=start_date`, and its validated date value. Reordering JSON input
-cannot change the digest; adding an unknown field fails request validation.
-
-The confirmation challenge uses `secrets.token_urlsafe(32)`, providing 256 random
-bits before URL-safe encoding. OrkaFin returns plaintext once and persists only
-`SHA-256(plaintext)`. Constant-time comparisons check the supplied digest. The
-confirmation row separately binds:
-
-- proposal ID (whose record binds action/version, target, and future idempotency);
-- verified user ID;
-- verified workspace ID; and
-- exact parameter digest.
-
-Both proposal and challenge expire after
-`ORKAFIN_CONFIRMATION_TTL_SECONDS`, default 300 seconds and constrained to
-60–3,600 seconds. Expiry uses `now >= expires_at` and atomically marks both states
-expired. A bad token, altered parameters, or wrong binding does not consume a
-still-valid challenge, preventing an unrelated caller from cancelling the real
-user's intent.
-
-The server generates one `action-<UUID>` idempotency key per proposal and stores
-it under the existing unique constraint. The browser cannot choose it. Prompt 19
-must reuse that exact key for adapter execution/reconciliation; it must not create
-a second execution key or blindly retry an ambiguous write.
-
-## Audit records
-
-There is no public audit-read endpoint. The action service writes these bounded,
-append-only records:
-
-| Event | Outcome | Safe details |
+| Condition | Result | User-safe assertion |
 |---|---|---|
-| `action_permission_checked` | `allowed` or `denied` | Phase, `action` check, stable decision code, action version, optional proposal ID |
-| `action_proposed` | `allowed` | Proposal ID, action version, `proposed` status |
-| `action_confirmation_issued` | `allowed` | Proposal ID, confirmation ID, TTL seconds |
-| `action_confirmed` | `allowed` | Proposal/confirmation IDs, `accepted`, execution state `not_started` |
-| `action_confirmation_rejected` | `denied` | Proposal/confirmation IDs and safe reason code |
-| `action_confirmation_expired` | `denied` | Proposal/confirmation IDs and `ttl_elapsed` |
-| `action_tampering_rejected` | `denied` | Proposal ID and a safe mismatch/replay reason code |
+| Action permission or candidate visibility revoked, state/version/hash conflict, expired confirmation | HTTP denial/conflict plus persisted `rejected` or `conflict` result | No adapter request; no change from this execution |
+| Explicit adapter validation/conflict/forbidden failure | `failed` | `OrkaATS could not complete the request. No changes were made.` |
+| Valid failed receipt | `failed` with receipt | Same proven no-change message |
+| Timeout, unavailable transport, unexpected adapter exception | `unknown` | Outcome not asserted; reconcile by idempotency key |
+| Malformed or mismatched receipt | `unknown`, receipt omitted | Outcome not asserted even if mock state changed |
+| Duplicate proposal/idempotency call | Stored result, `idempotent_replay=true` | No second adapter call |
 
-Actor, workspace, target reference, action ID, request ID, and correlation ID use
-typed top-level audit fields. Details contain no old/new values, hidden candidate
-data, plaintext challenge, parameter hash, token hash, raw body, or exception.
+The unknown message is: `OrkaATS did not confirm the outcome. Do not retry this
+action; reconcile it using the returned idempotency key.` OrkaFin intentionally
+has no automatic retry loop or generic reconciliation/rollback engine.
 
-## Threat controls and failure behavior
+The mock adapter keeps receipts indexed by idempotency key in its isolated state.
+An operator can compare the OrkaFin execution row with that adapter-owned receipt.
+A real adapter must define an authenticated reconciliation operation before live
+writes can be approved.
 
-| Threat | Control |
-|---|---|
-| Forged identity/role/permission/action | Browser schema excludes them; trusted context is freshly adapter-resolved |
-| Invisible or guessed candidate | Exact record visibility and candidate summary required; safe non-disclosing denial |
-| Unknown action/tool | Exact active catalog ID and exact service implementation required; no dispatch dictionary |
-| Malformed/no-op value | Strict one-field schema, real calendar-date parser, compare with permitted current value |
-| Parameter/target tampering | Canonical digest plus proposal/user/workspace/target binding and fresh context comparison |
-| Token theft or database disclosure | 256-bit secret, hash-only persistence, no logs/hash responses, short TTL |
-| Replay or concurrent accept | Conditional one-time state transition; terminal retry audited and returns conflict |
-| Permission revocation or stale preview | Acceptance rechecks action/permission/visibility and current old value; fails closed |
-| Adapter outage | No proposal or confirmation acceptance is fabricated from browser/cached/model data |
-| Fabricated write success | No execution call/result/receipt path; every response explicitly says no action executed |
+## Audit sequence
 
-## Human checkpoint before Prompt 19
+A successful first execution appends:
 
-Review and explicitly approve or reject:
+1. `action_execution_attempted`;
+2. `action_permission_checked` with `phase=execution`;
+3. `action_adapter_requested` after one-time reservation;
+4. `action_execution_succeeded` (or `failed` / `unknown`); and
+5. `action_final_result` containing only safe IDs and status codes.
 
-1. The selected action ID, mock-only scope, and exact `{start_date}` schema.
-2. The preview fields, wording, old/new value disclosure, and three warnings.
-3. The 300-second shared proposal/challenge TTL.
-4. Canonical parameter hashing and user/workspace/proposal/target/action-version binding.
-5. The one-time transition and non-consuming behavior for invalid attempts.
-6. Every audit event, outcome, safe detail field, and reason code.
-7. Server-generated proposal idempotency and required Prompt 19 reuse.
-8. Residual business-validation, concurrent-state, receipt, rollback, ambiguous
-   failure, real authentication, and adapter-execution risks.
+Pre-adapter denials omit `action_adapter_requested`. Replays append an attempt and
+final replay result but never a second adapter-request or success event. Audit
+details exclude the confirmation plaintext/hash, parameter hash, old/new value,
+candidate fields, raw request/response, and adapter transaction reference.
 
-Prompt 19 must not begin until this checkpoint is recorded. If approved, the
-handoff is action `candidate.update_start_date` version `1.0.0`, the two endpoints
-above, shared 300-second default TTL, server-generated proposal idempotency, and a
-confirmed/accepted state that has never executed.
+## Reset and manual compensation
+
+Reset all isolated mock values and receipts before a demo or test run:
+
+```bash
+python -m orkafin.adapters.orka_ats.seed --reset
+```
+
+Because this one mock action is catalogued as reversible, the documented manual
+compensating operation is to set the candidate's prior synthetic start date
+through the adapter-owned state utility after verifying the original receipt:
+
+```python
+from datetime import date
+
+from orkafin.adapters.orka_ats import MockOrkaATSStateStore
+
+MockOrkaATSStateStore().set_candidate_start_date("CAND-1042", date(2026, 8, 17))
+```
+
+This is an operator-only mock-state operation. It bypasses no real OrkaATS rule,
+is not exposed by the API or widget, and is not a general rollback engine.
+
+## Local demo
+
+1. Run the reset and migrations.
+2. Set `ORKAFIN_LOCAL_FIXTURE_SUBJECT=admin` and start the local service.
+3. Open `/demo`, select `candidate_profile` and `CAND-1042`.
+4. Preview a different start date, confirm it, then click `Execute approved
+   update` separately.
+5. Verify the adapter-confirmed success and resolve context again to see the
+   changed synthetic value.
+6. Repeat the execution request only for test verification: the stored result is
+   returned as an idempotent replay and the mock state has one receipt.
+
+## Prompt 20 handoff
+
+- Endpoint: `POST /api/v1/action-proposals/{proposal_id}:execute`.
+- Receipt: `AdapterExecutionReceipt` nested in `ActionExecutionResult`.
+- One server-generated idempotency key is shared by proposal, adapter request,
+  receipt, execution row, replay response, and manual reconciliation.
+- Unknown outcomes are terminal in V1 and require operator reconciliation; no
+  blind retry exists.
+- Unsupported: every other action, real Apps Script execution, real candidate
+  Sheet writes, background/batch actions, cross-app workflows, automated rollback,
+  and production authentication.
+- Prompt 20 must preserve the explicit statement that local mock tests do not
+  prove real OrkaATS integration.

@@ -1,6 +1,6 @@
 # Local V1 Architecture
 
-**Status:** Prompt 1 boundary retained; Prompt 18 confirmation-only extension pending human review
+**Status:** Prompt 1 boundary retained; Prompt 19 mock-only execution extension implemented
 
 ## Architectural intent
 
@@ -162,7 +162,7 @@ audit construction. Unknown apps/pages are distinct 404 client/configuration
 errors; adapter unavailability and timeout remain 503. See [`API.md`](API.md) for
 the reviewed shape and safe error codes.
 
-## Confirmed-action request flow (Prompt 18 preparation implemented; execution disabled)
+## Confirmed-action request flow (one Prompt 19 mock action implemented)
 
 ```mermaid
 sequenceDiagram
@@ -178,6 +178,8 @@ sequenceDiagram
     A-->>F: Typed verified response
     F-->>W: Exact preview + expiring confirmation challenge
     W->>F: Explicit confirmation bound to user/workspace/parameters
+    F-->>W: Execution-ready; no write yet
+    W->>F: Separate explicit execution click
     F->>A: Re-resolve identity, permission and current state
     A->>O: Revalidate and execute with idempotency key
     O-->>A: Execution receipt or explicit/ambiguous failure
@@ -193,11 +195,18 @@ Only a valid owning-adapter receipt permits a success state. Timeouts remain
 unknown until reconciled; they are not rewritten as success or as “no change”
 without proof.
 
-The implemented Prompt 18 flow stops after the widget's confirmation request.
-It persists `proposal=confirmed` and `confirmation=accepted`, returns
-`execution_ready=true` together with `execution_enabled=false`, and creates no
-execution record. The adapter execution half of the diagram is a Prompt 19 design
-only and remains blocked by the human checkpoint in
+Prompt 19 implements the adapter half only when fixture mode resolves exact
+adapter ID `mock_orka_ats`. The service consumes `confirmation=accepted` once,
+persists an execution reservation before dispatch, and transitions the proposal to
+`executed` only for a valid successful receipt; all other terminal outcomes become
+`failed`, while the execution result retains `failed`, `unknown`, `conflict`, or
+`rejected` detail. Duplicate requests return the stored result and do not dispatch.
+The mock's mutable JSON state is adapter-owned and separate from OrkaFin SQLite.
+
+The live Apps Script client shell is not selected by this execution service.
+Nothing in this flow proves real authentication, remote reachability, OrkaATS
+business rules, Google Sheet mutation, or production receipt authority. Full
+bindings and reconciliation behavior are in
 [`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md).
 
 ## Apps Script and localhost

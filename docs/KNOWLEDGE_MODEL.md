@@ -12,9 +12,9 @@ web, access Google Sheets, generate content, or infer missing features or steps.
 
 OrkaATS still owns candidate data, visibility decisions, business rules,
 permissions, and writes. A catalog permission is only a known permission name; it
-does not grant access. Prompt 18 activates `candidate.update_start_date` version
-`1.0.0` only for mock proposal/confirmation. Execution remains disabled pending
-the Q-007 and Prompt 19 review.
+does not grant access. Prompt 19 activates `candidate.update_start_date` version
+`1.0.0` only for proposal, confirmation, and isolated mock execution. Q-007 still
+blocks every live OrkaATS execution claim.
 
 ## Catalog layout and identity
 

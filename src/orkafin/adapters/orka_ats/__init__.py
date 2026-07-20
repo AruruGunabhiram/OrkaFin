@@ -20,6 +20,15 @@ from orkafin.adapters.orka_ats.mock import (
     MockFailureSimulation,
     MockOrkaATSAdapter,
 )
+from orkafin.adapters.orka_ats.state import (
+    MockCandidateStateConflictError,
+    MockIdempotencyConflictError,
+    MockOrkaATSState,
+    MockOrkaATSStateStore,
+    MockStateError,
+    MockStoredExecution,
+    default_mock_state_path,
+)
 
 __all__ = [
     "APPS_SCRIPT_ORKA_ATS_ADAPTER_ID",
@@ -37,5 +46,12 @@ __all__ = [
     "HttpTransportResponse",
     "HttpTransportTimeoutError",
     "MockFailureSimulation",
+    "MockCandidateStateConflictError",
+    "MockIdempotencyConflictError",
     "MockOrkaATSAdapter",
+    "MockOrkaATSState",
+    "MockOrkaATSStateStore",
+    "MockStateError",
+    "MockStoredExecution",
+    "default_mock_state_path",
 ]

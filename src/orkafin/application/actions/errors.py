@@ -46,3 +46,15 @@ class ActionStateConflictError(DomainError):
     status_code = status.HTTP_409_CONFLICT
     error_code = ErrorCode.ACTION_STATE_CONFLICT
     public_message = "The action proposal is no longer confirmable. No action was executed."
+
+
+class ActionExecutionAccessDeniedError(DomainError):
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = ErrorCode.ACTION_ACCESS_DENIED
+    public_message = "Execution permission is no longer available. No changes were made."
+
+
+class ActionExecutionStateConflictError(DomainError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = ErrorCode.ACTION_STATE_CONFLICT
+    public_message = "The approved action conflicts with current state. No changes were made."

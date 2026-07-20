@@ -222,11 +222,13 @@ action, version, target, request ID, and idempotency key all match the result. A
 successful receipt paired with a non-success result is also rejected. Failure,
 conflict, rejection, and ambiguous `unknown` remain explicit states.
 
-Prompt 18 now uses these proposal/confirmation contracts for the selected
-mock-only action. It adds no execution result: accepted confirmation ends at
-`proposal=confirmed`, `confirmation=accepted`, and `execution_state=not_started`.
-Q-007 in `docs/DECISIONS.md` still blocks action-specific execution business rules,
-receipt semantics, and a real write.
+Prompt 19 uses these proposal/confirmation/execution contracts for the selected
+mock-only action. Accepted confirmation ends at `proposal=confirmed` and
+`confirmation=accepted` until a separate execution call atomically consumes it.
+A successful mock receipt produces `proposal=executed`; explicit or ambiguous
+terminal outcomes produce `proposal=failed` while retaining the more precise
+execution status. Q-007 still blocks production business rules, authentication,
+receipt authority, and every real write claim.
 
 ## Prompt 5 handoff and unresolved choices
 
@@ -242,8 +244,8 @@ Still unresolved and not hard-coded here:
 - the production field inventory, field-name sensitivity, and role/visibility
   matrix (Q-002 and Q-003);
 - production identity and adapter authentication (Q-004 and Q-005);
-- the selected action's execution business/receipt semantics (Q-007); Prompt 18
-  includes confirmation-only preparation under D-028;
+- production action business/receipt semantics (Q-007); Prompt 19 resolves only
+  isolated mock behavior under D-029;
 - retention/deletion periods and allowed final event metadata (Q-008, Q-010,
   Q-012).
 

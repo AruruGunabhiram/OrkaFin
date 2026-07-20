@@ -16,9 +16,11 @@ export function createAssistantState(initialContext) {
     recommendationNotice: "",
     isActionSending: false,
     actionProposal: null,
-    actionResult: null,
+    actionConfirmation: null,
+    actionExecution: null,
+    executionProposalId: null,
     actionError: null,
-    actionStatus: "Execution is disabled in this proof of concept.",
+    actionStatus: "One mock-only start-date action is available after confirmation.",
     error: null,
     status: "Assistant closed.",
   };
@@ -49,7 +51,9 @@ export function createAssistantState(initialContext) {
       publish({
         context: { ...context },
         actionProposal: null,
-        actionResult: null,
+        actionConfirmation: null,
+        actionExecution: null,
+        executionProposalId: null,
         actionError: null,
         actionStatus: "Context changed. Any prior confirmation challenge was cleared.",
         error: null,
@@ -95,7 +99,9 @@ export function createAssistantState(initialContext) {
       publish({
         isActionSending: true,
         actionProposal: null,
-        actionResult: null,
+        actionConfirmation: null,
+        actionExecution: null,
+        executionProposalId: null,
         actionError: null,
         actionStatus: "Preparing a confirmation-only preview.",
       });
@@ -104,7 +110,8 @@ export function createAssistantState(initialContext) {
       publish({
         isActionSending: false,
         actionProposal: result,
-        actionResult: null,
+        actionConfirmation: null,
+        actionExecution: null,
         actionError: null,
         actionStatus: "Review the exact preview, then confirm or cancel.",
       });
@@ -113,23 +120,47 @@ export function createAssistantState(initialContext) {
       publish({
         isActionSending: true,
         actionError: null,
-        actionStatus: decision === "accept" ? "Confirming intent only." : "Cancelling intent.",
+        actionStatus: decision === "accept" ? "Confirming the reviewed action." : "Cancelling intent.",
       });
     },
-    receiveActionConfirmation(result) {
+    receiveActionConfirmation(result, proposalId) {
       publish({
         isActionSending: false,
         actionProposal: null,
-        actionResult: result,
+        actionConfirmation: result,
+        actionExecution: null,
+        executionProposalId: result.execution_ready ? proposalId : null,
         actionError: null,
         actionStatus: result.message,
       });
     },
-    failAction(error) {
+    beginActionExecution() {
+      publish({
+        isActionSending: true,
+        actionError: null,
+        actionStatus: "Revalidating permission and current candidate state before execution.",
+      });
+    },
+    receiveActionExecution(result) {
       publish({
         isActionSending: false,
+        actionConfirmation: null,
+        actionExecution: result.execution,
+        executionProposalId: null,
+        actionError: null,
+        actionStatus: result.execution.safe_message,
+      });
+    },
+    failAction(error, phase = "preparation") {
+      const ambiguous = phase === "execution" && ["timeout", "offline", "adapter_failure"].includes(error.kind);
+      publish({
+        isActionSending: false,
+        actionConfirmation: phase === "execution" ? null : snapshot.actionConfirmation,
+        executionProposalId: phase === "execution" ? null : snapshot.executionProposalId,
         actionError: error,
-        actionStatus: `${error.message} No action was executed.`,
+        actionStatus: ambiguous
+          ? "OrkaATS did not confirm the outcome. Do not retry; reconcile by idempotency key."
+          : error.message,
       });
     },
     fail(error) {
@@ -142,9 +173,11 @@ export function createAssistantState(initialContext) {
         response: null,
         isActionSending: false,
         actionProposal: null,
-        actionResult: null,
+        actionConfirmation: null,
+        actionExecution: null,
+        executionProposalId: null,
         actionError: null,
-        actionStatus: "Execution is disabled in this proof of concept.",
+        actionStatus: "One mock-only start-date action is available after confirmation.",
         error: null,
         status: "Conversation reset.",
       });

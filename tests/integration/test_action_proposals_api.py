@@ -105,8 +105,14 @@ def test_proposal_preview_and_confirmation_are_persisted_without_execution(
         ],
         "reversible": True,
         "warnings": [
-            "Mock confirmation only: confirming does not update OrkaATS or candidate data.",
-            "Execution stays disabled until a separate Prompt 19 human approval.",
+            (
+                "Mock mode only: this action changes isolated synthetic adapter state, "
+                "not real OrkaATS data."
+            ),
+            (
+                "Confirmation does not execute the action; a separate explicit execution "
+                "click is required."
+            ),
             (
                 "OrkaATS must revalidate current permissions, state, and business rules "
                 "before any future execution."
@@ -115,7 +121,7 @@ def test_proposal_preview_and_confirmation_are_persisted_without_execution(
     }
     assert proposed["proposal_status"] == "proposed"
     assert proposed["execution_ready"] is False
-    assert proposed["execution_enabled"] is False
+    assert proposed["execution_enabled"] is True
     assert proposed["execution_state"] == "not_started"
     assert "parameter_hash" not in proposal_response.text
     assert "confirmation_secret_hash" not in proposal_response.text
@@ -158,9 +164,9 @@ def test_proposal_preview_and_confirmation_are_persisted_without_execution(
     assert confirmed["proposal_status"] == "confirmed"
     assert confirmed["confirmation_status"] == "accepted"
     assert confirmed["execution_ready"] is True
-    assert confirmed["execution_enabled"] is False
-    assert confirmed["execution_state"] == "not_started"
-    assert confirmed["message"].endswith("no action was executed.")
+    assert confirmed["execution_enabled"] is True
+    assert confirmed["execution_state"] == "ready"
+    assert confirmed["message"].endswith("No action has been executed yet.")
     assert "confirmation_token" not in confirmation_response.text
 
     with dependencies.database.session_factory() as session:

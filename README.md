@@ -38,9 +38,9 @@ validation commands.
 - Use structured deterministic retrieval and a deterministic response provider by
   default. An external model is optional and is never an authorization or action
   authority.
-- Deliver grounded guidance and recommendations. Prompt 18 implements one
-  mock-only action through confirmation, with execution disabled pending a
-  separate human checkpoint and remaining safety gates.
+- Deliver grounded guidance and recommendations. Prompt 19 implements one
+  permission-revalidated, explicitly confirmed action through isolated mock state;
+  no live OrkaATS or Google Sheet execution is claimed.
 - Use explicit mock identities locally. A mock identity is not production
   authentication and proves nothing about a live Apps Script deployment.
 

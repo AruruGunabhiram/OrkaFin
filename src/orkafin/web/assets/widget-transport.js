@@ -98,5 +98,10 @@ export function createAssistantTransport({ baseUrl = "", fetchFn = fetch, timeou
         context,
       });
     },
+    async executeAction({ proposalId, context }) {
+      return request(`/api/v1/action-proposals/${encodeURIComponent(proposalId)}:execute`, {
+        context,
+      });
+    },
   };
 }

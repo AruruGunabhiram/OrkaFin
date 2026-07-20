@@ -56,18 +56,17 @@ is missing. The system must say so rather than guess.
 
 ## Optional confirmed-action proof of concept
 
-Prompt 18 opts into preparation and confirmation for exactly one low-risk mock
-action, `candidate.update_start_date`. The action catalog, permission/current-value
-checks, exact preview, one-time challenge, expiry, replay protection, state, audit,
-API, and widget controls are implemented. This approval does not include execution.
+Prompt 19 opts into preparation, one-time confirmation, and execution for exactly
+one low-risk mock action, `candidate.update_start_date`. Catalog allowlisting,
+permission/current-value checks, exact preview, expiry, replay protection,
+execution-time revalidation, idempotency, adapter business validation, receipt
+validation, audit, API, and explicit widget controls are implemented.
 
-Even in mock mode, execution remains forbidden until the catalog, permission check,
-record visibility, typed validation, exact preview, one-time expiring
-confirmation, parameter binding, execution-time revalidation, idempotency, audit
-trail, adapter failure handling, and receipt validation are implemented and
-reviewed. Prompt 18 stops at `confirmed`/`accepted` with
-`execution_enabled=false`; no execution row or adapter write occurs. No autonomous,
-batched, destructive, background, or live Sheet action is part of V1.
+Execution is limited to isolated synthetic `MockOrkaATSAdapter` state. Success
+requires its valid matching receipt; ambiguous outcomes remain `unknown` and are
+not retried. No additional, autonomous, batched, destructive, background, live
+Apps Script, or Google Sheet action is part of V1. Local success is not evidence of
+real OrkaATS integration.
 
 ## Data boundary
 

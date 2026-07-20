@@ -10,6 +10,9 @@ from orkafin.api.schemas import ConversationResponse, FeatureCatalogResponse
 from orkafin.application.actions import (
     ActionConfirmationRequest,
     ActionConfirmationResponse,
+    ActionExecutionRequest,
+    ActionExecutionResponse,
+    ActionExecutionService,
     ActionProposalRequest,
     ActionProposalResponse,
     ActionProposalService,
@@ -76,6 +79,13 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
         event_service=event_service,
     )
     action_service = ActionProposalService(
+        database=dependencies.database,
+        context_service=context_service,
+        adapter_registry=dependencies.adapter_registry,
+        knowledge_index=dependencies.knowledge_index,
+        settings=dependencies.settings,
+    )
+    action_execution_service = ActionExecutionService(
         database=dependencies.database,
         context_service=context_service,
         adapter_registry=dependencies.adapter_registry,
@@ -189,6 +199,32 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
     ) -> ActionConfirmationResponse:
         """Accept or reject intent only; this endpoint cannot execute an action."""
         return await action_service.confirm(
+            proposal_id,
+            value,
+            request_id=request_id_for(request),
+        )
+
+    @router.post(
+        "/api/v1/action-proposals/{proposal_id}:execute",
+        response_model=ActionExecutionResponse,
+        responses={
+            status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
+            status.HTTP_403_FORBIDDEN: {"model": ApiError},
+            status.HTTP_404_NOT_FOUND: {"model": ApiError},
+            status.HTTP_409_CONFLICT: {"model": ApiError},
+            status.HTTP_410_GONE: {"model": ApiError},
+            status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ApiError},
+            status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ApiError},
+        },
+        tags=["actions"],
+    )
+    async def execute_action_proposal(
+        proposal_id: str,
+        value: ActionExecutionRequest,
+        request: Request,
+    ) -> ActionExecutionResponse:
+        """Execute the one confirmed mock action only after fresh trusted checks."""
+        return await action_execution_service.execute(
             proposal_id,
             value,
             request_id=request_id_for(request),

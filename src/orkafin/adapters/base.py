@@ -676,7 +676,10 @@ class ExecuteApprovedActionRequest(ContextBoundAdapterRequest):
             raise ValueError("action proposal idempotency key must match adapter request")
         if identity.user_id is None or proposal.proposed_by_user_id != identity.user_id:
             raise ValueError("action proposal user must match trusted identity")
-        if proposal.workspace != self.context.workspace:
+        if (
+            proposal.workspace.workspace_id != self.context.workspace.workspace_id
+            or proposal.workspace.app_id != self.context.workspace.app_id
+        ):
             raise ValueError("action proposal workspace must match current context")
         if (
             confirmation.proposal_id != proposal.proposal_id

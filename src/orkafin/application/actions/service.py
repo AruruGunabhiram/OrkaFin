@@ -1,4 +1,4 @@
-"""Audited preparation and confirmation for one mock action, with no execution path."""
+"""Audited preparation and one-time confirmation for the single mock action."""
 
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ UPDATE_START_DATE_ACTION_ID = "candidate.update_start_date"
 _START_DATE_PARAMETER_ID = "start_date"
 _TOKEN_BYTES = 32
 _PREVIEW_WARNINGS = (
-    "Mock confirmation only: confirming does not update OrkaATS or candidate data.",
-    "Execution stays disabled until a separate Prompt 19 human approval.",
+    "Mock mode only: this action changes isolated synthetic adapter state, not real OrkaATS data.",
+    "Confirmation does not execute the action; a separate explicit execution click is required.",
     (
         "OrkaATS must revalidate current permissions, state, and business rules before "
         "any future execution."
@@ -73,7 +73,7 @@ _PREVIEW_WARNINGS = (
 
 
 class ActionProposalService:
-    """Prepare and confirm only ``candidate.update_start_date`` without executing it."""
+    """Prepare and confirm ``candidate.update_start_date`` without executing implicitly."""
 
     def __init__(
         self,
@@ -257,7 +257,7 @@ class ActionProposalService:
         *,
         request_id: RequestId,
     ) -> ActionConfirmationResponse:
-        """Accept or reject a challenge and stop before any execution operation."""
+        """Accept or reject a challenge and stop for a separate execution click."""
         proposal, confirmation = self._load_confirmation_state(proposal_id)
         now = self._now()
         if (
@@ -342,6 +342,8 @@ class ActionProposalService:
                 proposal_status=ActionProposalStatus.CANCELLED,
                 confirmation_status=ActionConfirmationStatus.REJECTED,
                 execution_ready=False,
+                execution_enabled=False,
+                execution_state="not_started",
                 message="Confirmation was cancelled. No action was executed.",
             )
 
@@ -413,9 +415,11 @@ class ActionProposalService:
             proposal_status=ActionProposalStatus.CONFIRMED,
             confirmation_status=ActionConfirmationStatus.ACCEPTED,
             execution_ready=True,
+            execution_enabled=True,
+            execution_state="ready",
             message=(
-                "Confirmation accepted and execution-ready. Execution is disabled; "
-                "no action was executed."
+                "Confirmation accepted. Review once more, then explicitly execute the "
+                "mock-only action. No action has been executed yet."
             ),
         )
 

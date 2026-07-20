@@ -130,7 +130,7 @@ OrkaFin-only `recommendation_preferences` table; they do not modify OrkaATS.
 The `9c2e4f6a1b73` migration adds that table and source-reference storage for
 recommendations.
 
-## Prompt 18 action proposal and confirmation audits
+## Prompt 18–19 action and execution audits
 
 The migration `e7a1c4b92d10` adds `action_permission_checked` to the audit
 vocabulary and enforces one confirmation row and one confirmation-secret digest
@@ -145,6 +145,11 @@ phase/status, TTL, and safe reason/decision codes. Old/new values, raw requests,
 plaintext challenges, parameter hashes, token hashes, hidden fields, and exception
 text are excluded. There is still no audit-read endpoint.
 
-Confirmation does not append action success/failure events because no execution is
-attempted. The exact records and outcomes are reviewed in
+The Prompt 19 migration `c19e2a4b7d01` enforces one execution row per proposal and
+adds `action_adapter_requested` and `action_final_result` to the append-only audit
+vocabulary. Execution appends `action_execution_attempted`, a fresh
+`action_permission_checked`, `action_adapter_requested` only after reservation,
+one of `action_execution_succeeded|failed|unknown`, and `action_final_result`.
+Replays never append a second adapter-request or outcome event. The exact records
+and outcomes are reviewed in
 [`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md).

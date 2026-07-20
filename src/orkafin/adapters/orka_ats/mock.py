@@ -8,9 +8,12 @@ objects, so an OrkaFin service cannot retrieve an unrestricted candidate record.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -20,11 +23,13 @@ from orkafin.adapters import (
     ADAPTER_CONTRACT_VERSION,
     AdapterCapability,
     AdapterCapabilityMetadata,
+    AdapterConflictError,
     AdapterErrorCode,
     AdapterFailure,
     AdapterMetadata,
     AdapterNotFoundError,
     AdapterUnauthorizedError,
+    AdapterUnavailableError,
     AdapterUnsupportedCapabilityError,
     AdapterValidationFailedError,
     AllowedRecordSearchResult,
@@ -68,11 +73,23 @@ from orkafin.adapters import (
     VisibleEntityField,
     adapter_error_from_failure,
 )
+from orkafin.adapters.orka_ats.state import (
+    MockCandidateStateConflictError,
+    MockIdempotencyConflictError,
+    MockOrkaATSStateStore,
+    MockStateError,
+)
 from orkafin.application.permissions import (
     AuthorizationSource,
     RecordVisibilityGrant,
     TrustedAuthorizationFacts,
 )
+from orkafin.domain.actions import (
+    AdapterExecutionReceipt,
+    AdapterReceiptOutcome,
+    DateActionParameter,
+)
+from orkafin.domain.catalog import CatalogStatus
 from orkafin.domain.context import (
     AppMetadata,
     AppStatus,
@@ -82,13 +99,16 @@ from orkafin.domain.context import (
     UserIdentity,
     WorkspaceRef,
 )
-from orkafin.domain.identifiers import SafeReference
+from orkafin.domain.identifiers import SafeReference, Sha256Digest
 from orkafin.domain.metadata import BoundedMetadata
 
 MOCK_ORKA_ATS_APP_ID = "orka_ats"
 MOCK_ORKA_ATS_ADAPTER_ID = "mock_orka_ats"
 _FIXTURE_TIME = datetime(2026, 7, 13, 20, 0, tzinfo=UTC)
 _CONTEXT_TTL_SECONDS = 300
+_UPDATE_START_DATE_ACTION_ID = "candidate.update_start_date"
+_UPDATE_START_DATE_ACTION_VERSION = "1.0.0"
+_START_DATE_PARAMETER_ID = "start_date"
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +117,7 @@ class MockFailureSimulation:
 
     failures: Mapping[AdapterCapability | str, AdapterErrorCode] | None = None
     latency_seconds: float = 0.0
+    malformed_execution_receipt: bool = False
 
     def code_for(self, capability: AdapterCapability) -> AdapterErrorCode | None:
         if self.failures is None:
@@ -111,6 +132,7 @@ class MockOrkaATSAdapter:
         self,
         *,
         fixture_root: Path | str | None = None,
+        state_path: Path | str | None = None,
         simulation: MockFailureSimulation | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
@@ -122,6 +144,8 @@ class MockOrkaATSAdapter:
             raise ValueError("mock adapter latency_seconds must not be negative")
         self._clock = clock or (lambda: _FIXTURE_TIME)
         self._fixtures = _load_fixture_bundle(self._fixture_root)
+        self._state = MockOrkaATSStateStore(state_path)
+        self._state.snapshot()
         self._metadata = AdapterMetadata(
             adapter_id=MOCK_ORKA_ATS_ADAPTER_ID,
             owning_app_id=MOCK_ORKA_ATS_APP_ID,
@@ -139,6 +163,7 @@ class MockOrkaATSAdapter:
                     AdapterCapability.GET_AVAILABLE_ACTIONS,
                     AdapterCapability.GET_RECENT_USER_EVENTS,
                     AdapterCapability.SEARCH_ALLOWED_RECORDS,
+                    AdapterCapability.EXECUTE_APPROVED_ACTION,
                 )
             ),
         )
@@ -400,8 +425,121 @@ class MockOrkaATSAdapter:
         self, request: ExecuteApprovedActionRequest
     ) -> ExecuteApprovedActionResponse:
         await self._before(AdapterCapability.EXECUTE_APPROVED_ACTION, request)
-        raise AdapterUnsupportedCapabilityError(
-            request_id=request.request_id, app_id=request.app_id
+        user = self._authorized_context(request)
+        definition = request.action_definition
+        proposal = request.proposal
+        target = proposal.target
+        if (
+            definition.action_id != _UPDATE_START_DATE_ACTION_ID
+            or definition.action_version != _UPDATE_START_DATE_ACTION_VERSION
+            or definition.status is not CatalogStatus.ACTIVE
+            or definition.required_permission.root not in user["permissions"]
+            or definition.action_id not in self._available_action_ids(user, request.context)
+        ):
+            raise AdapterValidationFailedError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            )
+
+        candidate = self._visible_candidate(
+            user,
+            target,
+            request.context.workspace.workspace_id,
+            request,
+        )
+        parameters = proposal.parameters
+        if (
+            len(parameters) != 1
+            or not isinstance(parameters[0], DateActionParameter)
+            or parameters[0].parameter_id != _START_DATE_PARAMETER_ID
+            or len(proposal.preview.changes) != 1
+            or proposal.preview.changes[0].old_value is None
+        ):
+            raise AdapterValidationFailedError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            )
+
+        canonical = json.dumps(
+            [parameter.model_dump(mode="json") for parameter in parameters],
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        calculated_hash = hashlib.sha256(canonical).hexdigest()
+        if not hmac.compare_digest(calculated_hash, proposal.parameter_hash.root):
+            raise AdapterValidationFailedError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            )
+
+        fixture_start_date = date.fromisoformat(
+            candidate["fields"][_START_DATE_PARAMETER_ID]["value"]
+        )
+        try:
+            expected_start_date = date.fromisoformat(proposal.preview.changes[0].old_value)
+        except ValueError as error:
+            raise AdapterValidationFailedError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            ) from error
+        new_start_date = parameters[0].value
+        if new_start_date == expected_start_date:
+            raise AdapterValidationFailedError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            )
+
+        request_fingerprint = self._execution_fingerprint(request)
+        key_digest = hashlib.sha256(request.idempotency_key.root.encode("utf-8")).hexdigest()
+        now = self._now()
+        receipt = AdapterExecutionReceipt(
+            receipt_id=f"receipt-{key_digest[:24]}",
+            adapter_id=self.metadata.adapter_id,
+            owner_app_id=request.app_id,
+            action_id=definition.action_id,
+            action_version=definition.action_version,
+            target=target,
+            request_id=request.request_id,
+            idempotency_key=request.idempotency_key,
+            adapter_transaction_reference=f"mock-transaction-{key_digest[:20]}",
+            outcome=AdapterReceiptOutcome.SUCCEEDED,
+            executed_at=now,
+            received_at=now,
+        )
+        try:
+            state_result = self._state.execute_start_date_update(
+                candidate_id=target.entity_id,
+                fixture_value=fixture_start_date,
+                expected_start_date=expected_start_date,
+                new_start_date=new_start_date,
+                idempotency_key=request.idempotency_key,
+                request_fingerprint=request_fingerprint,
+                receipt=receipt,
+            )
+        except (MockCandidateStateConflictError, MockIdempotencyConflictError) as error:
+            raise AdapterConflictError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            ) from error
+        except MockStateError as error:
+            raise AdapterUnavailableError(
+                request_id=request.request_id,
+                app_id=request.app_id,
+            ) from error
+
+        returned_receipt = state_result.receipt
+        if state_result.replayed and returned_receipt.request_id != request.request_id:
+            returned_receipt = returned_receipt.model_copy(
+                update={"request_id": request.request_id, "received_at": now}
+            )
+        if self._simulation.malformed_execution_receipt:
+            returned_receipt = returned_receipt.model_copy(
+                update={"adapter_id": "malformed_mock_adapter"}
+            )
+        return ExecuteApprovedActionResponse(
+            **self._envelope(request, AdapterCapability.EXECUTE_APPROVED_ACTION),
+            receipt=returned_receipt,
         )
 
     async def log_feedback(self, request: LogFeedbackRequest) -> LogFeedbackResponse:
@@ -547,7 +685,14 @@ class MockOrkaATSAdapter:
         if kind == "text":
             typed_value = EntityTextValue(value=value)
         elif kind == "date":
-            typed_value = EntityDateValue(value=datetime.fromisoformat(value).date())
+            fixture_value = datetime.fromisoformat(value).date()
+            try:
+                visible_value = self._state.current_start_date(
+                    candidate["candidate_id"], fixture_value
+                )
+            except MockStateError as error:
+                raise AdapterUnavailableError(app_id=MOCK_ORKA_ATS_APP_ID) from error
+            typed_value = EntityDateValue(value=visible_value)
         elif kind == "timestamp":
             typed_value = EntityTimestampValue(value=_parse_timestamp(value))
         elif kind == "integer":
@@ -606,6 +751,25 @@ class MockOrkaATSAdapter:
     @staticmethod
     def _response_id(request: Any, capability: AdapterCapability) -> str:
         return f"mock-{capability.value}-{request.request_id.root[-8:]}"
+
+    @staticmethod
+    def _execution_fingerprint(request: ExecuteApprovedActionRequest) -> Sha256Digest:
+        canonical = json.dumps(
+            {
+                "action_id": request.action_definition.action_id,
+                "action_version": request.action_definition.action_version,
+                "proposal_id": request.proposal.proposal_id,
+                "target": request.proposal.target.model_dump(mode="json"),
+                "parameters": [
+                    parameter.model_dump(mode="json") for parameter in request.proposal.parameters
+                ],
+                "parameter_hash": request.proposal.parameter_hash.root,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        return Sha256Digest(root=hashlib.sha256(canonical).hexdigest())
 
     def _now(self) -> datetime:
         value = self._clock()

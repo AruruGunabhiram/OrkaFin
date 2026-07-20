@@ -139,12 +139,13 @@ test("renders refusals, sources, and safe API failures", async () => {
   assert.ok(findText(errorRoot, "Adapter unavailable."));
 });
 
-test("previews and confirms intent while keeping execution visibly disabled", async () => {
+test("previews, confirms, and executes only after a separate explicit click", async () => {
   const document = new FakeDocument();
   const root = document.createElement("div");
   const challenge = "challenge_plaintext_must_not_render_1234567890";
   let proposedRequest = null;
   let confirmationRequest = null;
+  let executionRequest = null;
   const widget = mountAssistantWidget(root, {
     document,
     context: {
@@ -179,9 +180,20 @@ test("previews and confirms intent while keeping execution visibly disabled", as
           proposal_status: "confirmed",
           confirmation_status: "accepted",
           execution_ready: true,
-          execution_enabled: false,
-          execution_state: "not_started",
-          message: "Confirmation accepted. Execution is disabled; no action was executed.",
+          execution_enabled: true,
+          execution_state: "ready",
+          message: "Confirmation accepted. No action has been executed yet.",
+        };
+      },
+      async executeAction(value) {
+        executionRequest = value;
+        return {
+          execution: {
+            status: "succeeded",
+            safe_message: "Mock OrkaATS confirmed the candidate start date was updated.",
+            idempotency_key: "action-widget-idempotency-0001",
+          },
+          idempotent_replay: false,
         };
       },
     },
@@ -195,18 +207,85 @@ test("previews and confirms intent while keeping execution visibly disabled", as
 
   assert.equal(proposedRequest.startDate, "2026-10-06");
   assert.deepEqual(proposedRequest.context.selected_entity, { type: "candidate", id: "CAND-1042" });
-  assert.ok(findText(root, "Execution disabled — this flow can only prepare, preview, confirm, or cancel."));
+  assert.ok(findText(root, "Mock execution only — real OrkaATS and its Google Sheet are not connected."));
   assert.ok(findText(root, "Start date: 2026-08-17 → 2026-10-06"));
   assert.equal(findText(root, challenge), null);
 
-  findText(root, "Confirm intent only").dispatch("click");
+  findText(root, "Confirm update").dispatch("click");
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(confirmationRequest.decision, "accept");
   assert.equal(confirmationRequest.confirmationToken, challenge);
   assert.equal(confirmationRequest.startDate, "2026-10-06");
-  assert.ok(findText(root, "Confirmation accepted. Execution is disabled; no action was executed."));
+  assert.equal(executionRequest, null);
+  assert.ok(findText(root, "Confirmation accepted. No action has been executed yet."));
+  assert.ok(findText(root, "Execute approved update"));
   assert.equal(findText(root, challenge), null);
+
+  findText(root, "Execute approved update").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(executionRequest.proposalId, "proposal-widget");
+  assert.deepEqual(executionRequest.context.selected_entity, { type: "candidate", id: "CAND-1042" });
+  assert.ok(findText(root, "Mock OrkaATS confirmed the candidate start date was updated."));
+});
+
+test("execution timeout never claims that no change occurred or offers a retry", async () => {
+  const document = new FakeDocument();
+  const root = document.createElement("div");
+  const widget = mountAssistantWidget(root, {
+    document,
+    context: {
+      app_id: "orka_ats",
+      page: "candidate_profile",
+      selected_entity: { type: "candidate", id: "CAND-1042" },
+    },
+    transport: {
+      async proposeAction() {
+        return {
+          proposal_id: "proposal-timeout",
+          preview: {
+            summary: "Preview",
+            owning_app_id: "orka_ats",
+            owning_app_display_name: "Mock OrkaATS",
+            target_candidate_id: "CAND-1042",
+            affected_user_id: "mock-user-admin",
+            affected_workspace_id: "workspace_recruiting_alpha",
+            changes: [{ field_label: "Start date", old_value: "2026-08-17", new_value: "2026-10-06" }],
+            warnings: ["Mock only."],
+            reversible: true,
+          },
+          confirmation: { confirmation_token: "timeout_challenge_plaintext_1234567890123456" },
+        };
+      },
+      async confirmAction() {
+        return {
+          proposal_status: "confirmed",
+          confirmation_status: "accepted",
+          execution_ready: true,
+          execution_enabled: true,
+          execution_state: "ready",
+          message: "Confirmation accepted. No action has been executed yet.",
+        };
+      },
+      async executeAction() {
+        throw new AssistantTransportError("timeout", "The request timed out.");
+      },
+    },
+  });
+
+  widget.open();
+  findClass(root, "assistant-action-date").value = "2026-10-06";
+  findClass(root, "assistant-action-form").dispatch("submit");
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Confirm update").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+  findText(root, "Execute approved update").dispatch("click");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.ok(findText(root, "OrkaATS did not confirm the outcome. Do not retry; reconcile by idempotency key."));
+  assert.equal(findText(root, "Execute approved update"), null);
+  assert.equal(flatten(root).some((node) => node.textContent.includes("No changes were made")), false);
 });
 
 test("cancel control rejects the issued confirmation instead of executing", async () => {
@@ -232,7 +311,7 @@ test("cancel control rejects the issued confirmation instead of executing", asyn
             affected_user_id: "mock-user-admin",
             affected_workspace_id: "workspace_recruiting_alpha",
             changes: [{ field_label: "Start date", old_value: "2026-08-17", new_value: "2026-10-06" }],
-            warnings: ["Execution disabled."],
+            warnings: ["Mock only."],
             reversible: true,
           },
           confirmation: { confirmation_token: "cancel_challenge_plaintext_123456789012345678" },

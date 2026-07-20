@@ -257,13 +257,14 @@ each call.
 | `GET` | `/api/v1/apps/{app_id}/features` | Controlled product catalog; not a per-user availability grant. |
 | `POST` | `/api/v1/contexts:resolve` | Resolve a browser hint into ephemeral trusted context. |
 | `POST` | `/api/v1/action-proposals` | Prepare the one catalogued mock action and issue an expiring confirmation challenge. |
-| `POST` | `/api/v1/action-proposals/{proposal_id}/confirmations` | Accept or reject intent only; never execute. |
+| `POST` | `/api/v1/action-proposals/{proposal_id}/confirmations` | Accept or reject intent; acceptance still performs no write. |
+| `POST` | `/api/v1/action-proposals/{proposal_id}:execute` | Revalidate and execute the confirmed action once through the mock adapter. |
 | `POST` | `/api/v1/assistant/queries` | Execute one grounded assistant turn. |
 | `GET` | `/api/v1/conversations/{conversation_id}?app_id={app_id}&page={page}` | Read a conversation after revalidating its verified owner and workspace. |
 
 There is deliberately no audit-read endpoint.
 
-### Action proposal and confirmation endpoints
+### Action proposal, confirmation, and execution endpoints
 
 `POST /api/v1/action-proposals` accepts only
 `candidate.update_start_date`, exact parameters
@@ -280,27 +281,43 @@ challenge hash.
 Accept re-resolves and compares the trusted user, workspace, target, permission,
 action availability, catalog version, and current preview value. It returns
 `proposal_status=confirmed`, `confirmation_status=accepted`,
-`execution_ready=true`, `execution_enabled=false`, and
-`execution_state=not_started`. Reject produces cancelled/rejected state. Neither
-branch calls an execution adapter or creates an execution row.
+`execution_ready=true`, `execution_enabled=true`, and `execution_state=ready`.
+Reject produces cancelled/rejected state. Neither branch calls the execution
+adapter or creates an execution row.
+
+`POST /api/v1/action-proposals/{proposal_id}:execute` accepts only a fresh
+`ClientContextHint`. It re-resolves identity/context and rechecks candidate
+visibility, permission, available action, current state, action version, and
+parameter hash. It consumes the accepted confirmation, reserves the proposal's
+server-generated idempotency key, calls `execute_approved_action` once, and
+returns `ActionExecutionResponse` with a persisted `ActionExecutionResult`.
+
+`succeeded` requires a valid matching `AdapterExecutionReceipt`. Explicit adapter
+rejection returns `failed` with `OrkaATS could not complete the request. No changes
+were made.` Timeout, unavailable transport, unexpected failure, or an invalid
+receipt returns `unknown` and reconciliation-safe wording that does not assert no
+change. A repeated endpoint request returns the stored result with
+`idempotent_replay=true` and makes no adapter call.
 
 Action-specific safe failures are:
 
 | HTTP | Code | Meaning |
 |---:|---|---|
-| 403 | `action_access_denied` | Current trusted permission/action/record facts do not allow preparation or acceptance |
+| 403 | `action_access_denied` | Current trusted permission/action/record facts do not allow preparation, acceptance, or execution |
 | 403 | `action_confirmation_invalid` | Token, parameters, user, workspace, or target binding did not verify; mismatch is not disclosed |
-| 404 | `action_not_available` | Action is not the exact active catalogued Prompt 18 action |
+| 404 | `action_not_available` | Action is not the exact active catalogued mock action |
 | 404 | `action_proposal_not_found` | Proposal/challenge pair is unavailable |
 | 409 | `action_state_conflict` | Proposal is terminal, replayed, raced, or has a stale preview/catalog version |
 | 410 | `action_confirmation_expired` | Shared proposal/challenge TTL elapsed |
 | 422 | `action_input_invalid` | Validly shaped value is an invalid no-op for the current safe value |
 
 Malformed dates/extra fields use the standard `422 validation_error`; adapter
-outage remains `503 adapter_unavailable`. All errors say or imply that no action
-was executed and return no hidden candidate values or hashes. See
+outage remains `503 adapter_unavailable`. Pre-adapter denials safely state that no
+change was made. An execution timeout or ambiguous response never makes that
+assertion. Errors and results return no hidden candidate values, confirmation
+secrets, or hashes. See
 [`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md) for complete
-examples, binding, TTL, idempotency, audits, and the human checkpoint.
+examples, binding, TTL, execution receipts, idempotency, and audits.
 
 ### `POST /api/v1/assistant/queries`
 

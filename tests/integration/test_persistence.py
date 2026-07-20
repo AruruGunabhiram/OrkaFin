@@ -163,6 +163,10 @@ def test_fresh_migration_creates_only_approved_orkafin_tables(tmp_path: Path) ->
     }
     assert confirmation_indexes["uq_action_confirmations_proposal_id"]["unique"] == 1
     assert confirmation_indexes["uq_action_confirmations_secret_hash"]["unique"] == 1
+    execution_indexes = {
+        index["name"]: index for index in inspector.get_indexes("action_executions")
+    }
+    assert execution_indexes["uq_action_executions_proposal_id"]["unique"] == 1
     command.downgrade(config, "base")
 
 
@@ -244,11 +248,14 @@ def test_repository_persists_validated_orkafin_records(migrated_database: Databa
     with migrated_database.session_factory() as session:
         repository = OrkaFinRepository(session)
         stored_conversation = repository.get_conversation("conversation-001")
+        stored_execution = repository.get_action_execution_for_proposal("proposal-001")
         messages = repository.list_messages("conversation-001")
         assert stored_conversation is not None
         assert stored_conversation.workspace.display_name is None
         assert stored_conversation.status is ConversationStatus.ACTIVE
         assert [message.message_id for message in messages] == ["message-001"]
+        assert stored_execution is not None
+        assert stored_execution.status is ActionExecutionStatus.UNKNOWN
         assert session.scalar(select(AuditRecordModel.audit_id)) == "audit-001"
 
         repository.update_conversation(conversation(status=ConversationStatus.CLOSED))

@@ -30,9 +30,10 @@ summaries or events.
 Supported pages are `candidate_dashboard`, `candidate_list`,
 `candidate_profile`, `recruitment_pipeline`, `candidate_creation_form`, and
 `recruiter_filters`. Features are calculated from the verified user and current
-page. Prompt 18 advertises `candidate.update_start_date` only to the eligible admin
-fixture so OrkaFin can prepare and confirm it. `execute_approved_action` remains an
-explicit unsupported stub and is not advertised as a mock capability.
+page. The adapter advertises `candidate.update_start_date` only to the eligible
+admin fixture and implements `execute_approved_action` for that action alone. It
+rechecks permission, action availability, candidate visibility, definition
+version, parameter hash, current value, and idempotency before mutating state.
 
 ## Reset and failure simulation
 
@@ -42,20 +43,30 @@ Reset the optional adapter-owned state file with:
 python -m orkafin.adapters.orka_ats.seed --reset
 ```
 
-This creates `var/mock_orka_ats_state.json`; it does not touch `var/orkafin.db`
-or any OrkaFin persistence repository. The current adapter has no enabled writes,
-so the state file is intentionally empty aside from its version and action list.
+This restores fixture start dates and clears all receipts in
+`var/mock_orka_ats_state.json`; it does not touch `var/orkafin.db` or any OrkaFin
+persistence repository. Tests can inject a temporary `state_path` so mutable
+candidate values and idempotency receipts remain isolated per test.
+
+State schema version 1 contains only start-date overrides and execution receipts
+indexed by idempotency key. Reads overlay those values on immutable synthetic
+fixtures. Writes use an atomic compare-and-set file replacement. The state store
+returns the original receipt for an exact idempotent replay and rejects a key
+bound to different request facts.
 
 Tests can construct `MockOrkaATSAdapter` with `MockFailureSimulation`. Its
 `failures` mapping accepts an `AdapterCapability` (or capability string) and an
 `AdapterErrorCode`, such as `TIMEOUT`, `UNAVAILABLE`, or `VALIDATION_FAILED`.
 `latency_seconds` adds a deterministic async delay before the configured result.
-Failures become the contract's exact typed adapter exceptions; no success result
-is fabricated.
+`malformed_execution_receipt=True` performs the mock write but returns a
+mismatched adapter ID so OrkaFin's no-fabricated-success behavior can be tested.
+Failures become the contract's exact typed adapter exceptions.
 
 ## Limitations
 
 The mock performs no live Apps Script request, production identity proof, Google
-Sheet access, write execution, notes permission workflow, or retry reconciliation.
-It validates the fixture boundary and authorization semantics only. A real OrkaATS
-adapter must independently enforce the same rules at its system of record.
+Sheet access, real candidate write, notes permission workflow, or automatic retry.
+Its idempotency receipts support local manual reconciliation only. A real OrkaATS
+adapter must independently enforce the rules at its system of record and define an
+authenticated reconciliation contract. Local mock success proves no live
+integration property.

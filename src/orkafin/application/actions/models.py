@@ -10,6 +10,7 @@ from pydantic import Field, StringConstraints, field_validator
 
 from orkafin.domain.actions import (
     ActionConfirmationStatus,
+    ActionExecutionResult,
     ActionPreviewChange,
     ActionProposalStatus,
 )
@@ -176,12 +177,12 @@ class ActionProposalResponse(DomainModel):
     confirmation: ActionConfirmationChallenge
     expires_at: UtcDatetime
     execution_ready: Literal[False] = False
-    execution_enabled: Literal[False] = False
+    execution_enabled: Literal[True] = True
     execution_state: Literal["not_started"] = "not_started"
 
 
 class ActionConfirmationResponse(DomainModel):
-    """Confirmation-only result; no execution record or adapter call is represented."""
+    """Confirmation result that still requires a separate explicit execution click."""
 
     data_policy: ClassVar[ModelDataPolicy] = ActionProposalPreview.data_policy
 
@@ -189,6 +190,23 @@ class ActionConfirmationResponse(DomainModel):
     proposal_status: ActionProposalStatus
     confirmation_status: ActionConfirmationStatus
     execution_ready: bool
-    execution_enabled: Literal[False] = False
-    execution_state: Literal["not_started"] = "not_started"
+    execution_enabled: bool
+    execution_state: Literal["not_started", "ready"]
     message: ShortText
+
+
+class ActionExecutionRequest(DomainModel):
+    """Untrusted navigation hints only; execution bindings remain server-owned."""
+
+    data_policy: ClassVar[ModelDataPolicy] = UpdateStartDateParameters.data_policy
+
+    context: ClientContextHint
+
+
+class ActionExecutionResponse(DomainModel):
+    """Persisted safe outcome, with explicit disclosure of idempotent replay."""
+
+    data_policy: ClassVar[ModelDataPolicy] = ActionProposalPreview.data_policy
+
+    execution: ActionExecutionResult
+    idempotent_replay: bool = False

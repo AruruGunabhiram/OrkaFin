@@ -277,6 +277,7 @@ class ActionExecutionModel(Base):
             name="ck_action_executions_status",
         ),
         Index("ix_action_executions_proposal", "proposal_id"),
+        UniqueConstraint("proposal_id", name="uq_action_executions_proposal_id"),
     )
 
     execution_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -309,7 +310,8 @@ class AuditRecordModel(Base):
             "'action_confirmation_issued', "
             "'action_confirmed', 'action_confirmation_rejected', 'action_confirmation_expired', "
             "'action_tampering_rejected', 'action_execution_attempted', "
-            "'action_execution_succeeded', 'action_execution_failed', 'action_execution_unknown')",
+            "'action_adapter_requested', 'action_execution_succeeded', "
+            "'action_execution_failed', 'action_execution_unknown', 'action_final_result')",
             name="ck_audit_records_event_type",
         ),
         CheckConstraint(

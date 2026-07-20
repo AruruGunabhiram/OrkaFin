@@ -1,6 +1,6 @@
 # Local V1 Decisions, Assumptions, and Open Questions
 
-**Status:** Prompt 18 confirmation-only action extension implemented; human review pending
+**Status:** Prompt 19 single-action mock execution extension implemented
 **Last updated:** 2026-07-19
 
 ## How to use this record
@@ -58,6 +58,7 @@ The architecture decision records are:
 | D-026 | The future OrkaATS Apps Script boundary uses wire schema `v1` over the unchanged general adapter contract `1.0.0`, through an injected transport. The shell is disabled by default, requires an explicit HTTPS endpoint and bounded timeout/response size, and contains no network client, URL, secret, or production authentication. | Makes HTTP replaceable and locally mockable without coupling core services or falsely claiming a secure live integration. |
 | D-027 | Mock, browser-local, controlled HTTPS tunnel, and later hosted API are distinct integration modes. Browser claims remain untrusted; Apps Script server-side code cannot reach a developer laptop through `localhost`; a tunnel is synthetic-data-only temporary testing, not production architecture. | Prevents local connectivity techniques from being mistaken for identity proof, deployment, or an approved live data path. |
 | D-028 | Prompt 18 enables proposal and one-time confirmation for `candidate.update_start_date` version `1.0.0` in mock mode only. Confirmation may become execution-ready but execution remains disabled pending a separate Prompt 19 approval. | Resolves Q-006 only for the preparation checkpoint without broadening OrkaFin write authority. |
+| D-029 | Prompt 19 executes only `candidate.update_start_date` version `1.0.0` through exact adapter `mock_orka_ats` after a separate click, fresh trusted checks, one-time reservation, adapter revalidation, idempotency, receipt validation, and complete audit. Timeout/unavailable/malformed outcomes are `unknown` and never blindly retried. | Proves the local architecture using isolated synthetic adapter state; it does not approve or prove Apps Script, Google Sheet, or real candidate execution. |
 
 The Prompt 4 field shapes, module paths, ID patterns, and handling table are in
 [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md). These entries clarify existing boundaries;
@@ -105,8 +106,8 @@ clearly labeled provisional fixture only when its checkpoint requires review.
 | Q-003 | How are record assignments/project/workspace visibility represented independently of role? | OrkaATS owner; Prompt 7 checkpoint | Blocks final record-access policy |
 | Q-004 | In each Apps Script deployment mode, who executes the app, when is active-user identity available, and how is the assertion authenticated to OrkaFin? | Platform/security owner; before live adapter | Blocks live Apps Script integration and every production identity claim |
 | Q-005 | What controlled HTTPS endpoint and server-to-server authentication/replay protocol will live Apps Script use? | Platform/security owner; before live adapter | Blocks live connectivity; local mock remains allowed |
-| Q-006 | Resolved for Prompt 18: include the optional POC and select `candidate.update_start_date` in mock mode. | Prompt 18 request; exact implementation review pending | Proposal/confirmation may be reviewed; execution remains blocked |
-| Q-007 | Prompt 18 provisionally accepts one real complete `YYYY-MM-DD` value different from the visible current value. Allowed business states/ranges, concurrency, rollback, reversibility guarantees, execution authentication, and receipt semantics remain unresolved. | OrkaATS product/engineering + security; before Prompt 19 | Does not block confirmation-only preparation; blocks execution |
+| Q-006 | Resolved for Local V1: include the optional POC and execute only `candidate.update_start_date` through the mock adapter. | Prompt 19 implementation request | Does not approve any other or live action |
+| Q-007 | Resolved only for isolated mock mode: accept one real complete `YYYY-MM-DD` value different from the current value; use adapter compare-and-set, idempotent receipts, and manual start-date compensation. Real OrkaATS business states/ranges, authentication, concurrency, rollback guarantees, and receipt authority remain unresolved. | OrkaATS product/engineering + security; before live execution | Does not block local mock execution; blocks every live write claim |
 | Q-008 | What are retention/deletion periods for conversations, events, feedback, proposals, receipts, and audits? | Product/privacy/security; before non-local deployment | V1 must minimize and document fixture cleanup; blocks production claim |
 | Q-009 | Who owns and approves feature, page, help, and action catalog revisions, and how is staleness signaled? | Product owner; Prompt 6 checkpoint | Blocks declaring knowledge production-ready |
 | Q-010 | Which meaningful events may be collected and which metadata fields are prohibited? | Product/privacy; before Prompt 17 | Blocks final event schema/policy |
@@ -143,11 +144,11 @@ The complete review artifact is
 
 | Field | Value |
 |---|---|
-| Reviewer | Pending |
-| Review date | Pending |
-| Outcome | Pending: approve for Prompt 19, approve with conditions, or reject execution |
+| Reviewer | Prompt 19 requesting reviewer (name not recorded) |
+| Review date | 2026-07-19 |
+| Outcome | Approved to proceed by the explicit Prompt 19 implementation request |
 | Selected action | `candidate.update_start_date` version `1.0.0`, mock only |
-| Conditions/notes | Execution is disabled and no state change has occurred |
+| Conditions/notes | Isolated mock state only; real OrkaATS integration remains unproven |
 
 ## Verification steps
 

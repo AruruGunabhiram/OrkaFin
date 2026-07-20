@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 from uuid import uuid4
@@ -25,6 +26,7 @@ from orkafin.adapters import (
     GetUserPermissionsRequest,
     ResolveContextRequest,
     ResolveCurrentUserRequest,
+    ResolvedApplicationContext,
     SelectedEntitySummary,
     VisibleEntityField,
 )
@@ -89,6 +91,16 @@ class AuditRecorder(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class TrustedContextResolution:
+    """Minimized public context plus exact request-scoped adapter bindings."""
+
+    page_context: ResolvedPageContext
+    application_context: ResolvedApplicationContext
+    trusted_identity: UserIdentity
+    candidate_access_denied: bool = False
+
+
 class TrustedContextResolutionService:
     """Resolve trusted adapter facts while treating the entire request body as hints."""
 
@@ -117,6 +129,23 @@ class TrustedContextResolutionService:
         include_candidate_summary: bool = True,
     ) -> ResolvedPageContext:
         """Resolve identity, page, authorization, actions, and an allowed candidate summary."""
+        resolution = await self.resolve_for_action_execution(
+            client_hint=client_hint,
+            request_id=request_id,
+            include_candidate_summary=include_candidate_summary,
+        )
+        if resolution.candidate_access_denied:
+            raise CandidateAccessDeniedError
+        return resolution.page_context
+
+    async def resolve_for_action_execution(
+        self,
+        *,
+        client_hint: ClientContextHint,
+        request_id: RequestId,
+        include_candidate_summary: bool = True,
+    ) -> TrustedContextResolution:
+        """Resolve fresh facts while retaining bindings needed for a terminal denial."""
         app_id = client_hint.app_id
         try:
             adapter = self._adapter_registry.resolve(
@@ -236,6 +265,7 @@ class TrustedContextResolutionService:
 
         candidate_summary: CandidateSummary | None = None
         candidate_response_id: str | None = None
+        candidate_access_denied = False
         selected_entity = application_context.selected_entity
         if (
             include_candidate_summary
@@ -257,33 +287,34 @@ class TrustedContextResolutionService:
                     check=record_decision.check.value,
                     decision_code=record_decision.code.value,
                 )
-                raise CandidateAccessDeniedError
-            adapter = self._adapter_registry.resolve(
-                app_id,
-                required_capability=AdapterCapability.GET_SELECTED_ENTITY_SUMMARY,
-                request_id=request_id,
-            )
-            summary_response = await adapter.get_selected_entity_summary(
-                GetSelectedEntitySummaryRequest(
+                candidate_access_denied = True
+            else:
+                adapter = self._adapter_registry.resolve(
+                    app_id,
+                    required_capability=AdapterCapability.GET_SELECTED_ENTITY_SUMMARY,
                     request_id=request_id,
-                    app_id=app_id,
-                    trusted_identity=identity,
-                    context=application_context,
-                    requested_field_ids=_CANDIDATE_SUMMARY_FIELD_IDS,
                 )
-            )
-            if summary_response.summary.entity != selected_entity:
-                raise ContextUnavailableError
-            candidate_summary = _candidate_summary(summary_response.summary)
-            candidate_response_id = summary_response.adapter_response_id
-            self._append_candidate_read(
-                app_id=app_id,
-                request_id=request_id,
-                identity=identity,
-                workspace_id=application_context.workspace.workspace_id,
-                target=selected_entity,
-                summary=candidate_summary,
-            )
+                summary_response = await adapter.get_selected_entity_summary(
+                    GetSelectedEntitySummaryRequest(
+                        request_id=request_id,
+                        app_id=app_id,
+                        trusted_identity=identity,
+                        context=application_context,
+                        requested_field_ids=_CANDIDATE_SUMMARY_FIELD_IDS,
+                    )
+                )
+                if summary_response.summary.entity != selected_entity:
+                    raise ContextUnavailableError
+                candidate_summary = _candidate_summary(summary_response.summary)
+                candidate_response_id = summary_response.adapter_response_id
+                self._append_candidate_read(
+                    app_id=app_id,
+                    request_id=request_id,
+                    identity=identity,
+                    workspace_id=application_context.workspace.workspace_id,
+                    target=selected_entity,
+                    summary=candidate_summary,
+                )
 
         context_trust = _resolved_trust(
             identity_response_id=identity_response.adapter_response_id,
@@ -295,7 +326,7 @@ class TrustedContextResolutionService:
             selected_entity=selected_entity,
             candidate_response_id=candidate_response_id,
         )
-        return ResolvedPageContext(
+        page_context = ResolvedPageContext(
             verification_source=ContextVerificationSource.APPLICATION_ADAPTER,
             adapter_response_id=context_response.adapter_response_id,
             component_trust=context_trust,
@@ -311,6 +342,12 @@ class TrustedContextResolutionService:
             candidate_summary=candidate_summary,
             resolved_at=application_context.resolved_at,
             valid_until=application_context.valid_until,
+        )
+        return TrustedContextResolution(
+            page_context=page_context,
+            application_context=application_context,
+            trusted_identity=identity,
+            candidate_access_denied=candidate_access_denied,
         )
 
     def _append_identity_denial(self, *, app_id: str, request_id: RequestId) -> None:

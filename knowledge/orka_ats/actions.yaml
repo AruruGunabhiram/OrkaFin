@@ -5,9 +5,9 @@ actions:
       action_id: candidate.update_start_date
       owner_app_id: orka_ats
       action_version: 1.0.0
-      revision: rev-002
+      revision: rev-003
       title: Update start date
-      description: Mock-only preparation and confirmation for one candidate start-date update; execution is disabled.
+      description: Mock-only preparation, confirmation, and receipt-backed execution for one candidate start-date update in isolated adapter state.
       target_entity_type: candidate
       required_permission: candidate.update_start_date
       parameters:
@@ -45,7 +45,7 @@ actions:
       status: active
       safe_reference: catalog://orka_ats/actions/candidate.update_start_date
     aliases: [update_start_date]
-    purpose: Prepare and confirm one bounded mock action while leaving all execution disabled for human review.
+    purpose: Execute one bounded confirmed action in isolated mock state without implying live OrkaATS integration.
     supported_roles:
       - schema_version: v1
         role_id: administrator
@@ -57,9 +57,9 @@ actions:
     provenance:
       schema_version: v1
       content_version: 1.0.0
-      revision: rev-002
+      revision: rev-003
       status: active
       verification_status: provisional
       documentation_owner: OrkaATS product owner
-      last_reviewed_at: 2026-07-19T18:00:00Z
+      last_reviewed_at: 2026-07-19T21:00:00Z
       safe_reference: catalog://orka_ats/actions/candidate.update_start_date

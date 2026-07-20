@@ -68,14 +68,20 @@ when starting it (the browser never supplies identity, role, permissions, or a
 secret):
 
 ```bash
-ORKAFIN_LOCAL_FIXTURE_SUBJECT=limited_viewer uvicorn orkafin.main:app --reload
+python -m orkafin.adapters.orka_ats.seed --reset
+ORKAFIN_LOCAL_FIXTURE_SUBJECT=admin uvicorn orkafin.main:app --reload
 ```
 
 Then open `http://127.0.0.1:8000/demo`. Choose a page and synthetic candidate,
 open **Ask OrkaFin**, and use a suggested prompt or enter a question. `CAND-1099`
 is intentionally useful for checking a safe denied response. Valid synthetic
-fixture subjects are defined in `fixtures/users.yaml`; the local demo does not
+fixture subjects are defined in `fixtures/orka_ats/users.yaml`; the local demo does not
 provide a browser identity switcher.
+
+The `admin` fixture is required for the one mock action. Preview a new start date,
+confirm it, and then click **Execute approved update** separately. Success changes
+only isolated mock adapter state. It does not contact Apps Script or a Google
+Sheet. Reset that state with the seed command before repeating the demo.
 
 Manual smoke checklist:
 
@@ -85,6 +91,10 @@ Manual smoke checklist:
 4. Select `CAND-1099` and confirm denial is displayed without a fabricated summary.
 5. Stop the local service, submit a question, and confirm the offline message; restart it.
 6. Use **Reset conversation** and verify the response area returns to its empty state.
+7. Preview and confirm a different `CAND-1042` start date; verify no value changes
+   before the separate execution click.
+8. Execute once, verify the adapter-confirmed success, and resolve the candidate
+   context again to see the synthetic value.
 
 For the lightweight frontend checks, run:
 

@@ -1,6 +1,6 @@
 # Local V1 Threat Model
 
-**Status:** Updated for Prompt 18 confirmation controls; human review required before Prompt 19
+**Status:** Updated for Prompt 19 single-action mock execution
 **Method:** Asset and trust-boundary review with abuse cases and testable controls
 
 ## Scope and assets
@@ -30,16 +30,19 @@ controls.
 - Approved documents can contain malicious text and are not policy authorities.
 - The OrkaFin database and logs may be read by the local operator; V1 has no
   multi-tenant database isolation claim.
-- Actions are disabled unless the optional action checkpoint is explicitly passed.
+- Exactly one action is executable only in fixture mode through adapter ID
+  `mock_orka_ats`; every other action and every real adapter write remains disabled.
 
 ## Security decisions for this threat model
 
 The local service denies access when trusted identity, adapter policy, permitted
 context, or grounding is unavailable. It never substitutes browser claims, stale
 candidate copies, or model output for those missing authorities. Candidate data
-remains OrkaATS-owned, candidate notes remain excluded from provider input by
-default, and action execution remains disabled until the optional reviewed gates
-exist. These are architecture decisions, not mitigations a feature may turn off.
+remains OrkaATS-owned and candidate notes remain excluded from provider input by
+default. The optional execution path is closed to one typed mock-only action and
+requires fresh trusted checks, one-time confirmation consumption, idempotency, an
+adapter-owned compare-and-set, and receipt validation. These are architecture
+decisions, not mitigations a feature may turn off.
 
 ## Threat register
 
@@ -135,10 +138,10 @@ business validation; reject unknown fields and stale/conflicting state.
 add fields, swap users/workspaces/records, change state between steps, and call
 execution without proposal/confirmation. No adapter execution should occur.
 
-**Residual risk/change trigger:** The Prompt 18 schema and preview now require
-human approval before execution. OrkaATS business-date, concurrency, rollback, and
-receipt rules remain unresolved. Every new action/input schema needs separate
-abuse cases and preview review.
+**Residual risk/change trigger:** Prompt 19 proves only the synthetic date and
+compare-and-set rules. Real OrkaATS employment-date rules, authorization protocol,
+storage concurrency, rollback guarantees, and receipt authority remain unresolved.
+Every new action/input schema needs separate abuse cases and preview review.
 
 ### T-05 — Confirmation replay, theft, or expiry bypass
 
@@ -156,10 +159,11 @@ and expiry.
 logged-secret tests; database/log scans must not reveal plaintext; duplicate calls
 must produce one adapter effect at most.
 
-**Residual risk/change trigger:** Prompt 18 uses conditional SQLite transitions and
-one challenge per proposal, but multi-process/remote deployment still requires a
-database-level concurrency, CSRF/session-theft, and distributed idempotency review.
-No execution retry behavior is approved.
+**Residual risk/change trigger:** Conditional SQLite transitions, one execution row
+per proposal, one key per proposal, and mock adapter compare-and-set are local
+controls. Multi-process/remote deployment still requires a database-level
+concurrency, CSRF/session-theft, and distributed idempotency review. Unknown writes
+are terminal in V1; only manual key-based reconciliation is approved.
 
 ### T-06 — Fabricated or ambiguous success
 
@@ -185,8 +189,10 @@ audit/response consistency tests.
 
 **Residual risk/change trigger:** The secondary success-phrase recognizer is not a
 semantic classifier and may miss novel wording; the primary protection is that no
-provider claim category can report success. Real Apps Script must define idempotent
-execution and receipt/reconciliation semantics before writes can be enabled.
+provider claim category can report success. A malformed-receipt test deliberately
+shows mock state may change while OrkaFin returns `unknown`. Real Apps Script must
+define authenticated idempotent execution and receipt/reconciliation semantics
+before writes can be enabled.
 
 ### T-07 — Secrets or sensitive content in frontend code and logs
 
@@ -276,6 +282,29 @@ approved summary is truthful or malicious, and raw help text can still influence
 retrieval ranking. External document ingestion or non-engineer publishing requires
 signed/approved ingestion workflow, provenance, content review, rollback, and
 freshness policy.
+
+### T-11 — Mock-state corruption, cross-test leakage, or unsafe compensation
+
+**Attack/failure:** Two tests share mutable candidate state, a partial file write
+corrupts receipts, an idempotency key is rebound, or a manual reversal is exposed
+as a general user rollback mechanism.
+
+**Impact:** Nondeterministic authorization/state checks, duplicate mock effects,
+misleading demos, or accidental expansion of write authority.
+
+**Controls:** Injectable state paths; explicit reset command; versioned validated
+state schema; process-local lock and atomic file replacement; exact request
+fingerprint per idempotency key; state kept outside OrkaFin persistence and Git;
+one documented operator-only start-date compensation method with no API route.
+
+**Verification:** Temporary state per execution test, reset-after-write coverage,
+same-key exact replay, changed-fingerprint conflict, malformed-state failure,
+single receipt/effect assertions, and repository scans for candidate tables.
+
+**Residual risk/change trigger:** The JSON store and process-local lock are a local
+test harness, not a multi-process transaction system or tamper-evident record. Any
+shared or hosted mock requires a real transactional adapter-owned store and access
+control; any automated rollback requires a separately reviewed design.
 
 ## Cross-cutting verification schedule
 

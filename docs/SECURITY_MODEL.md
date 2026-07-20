@@ -1,6 +1,6 @@
 # Local V1 Security Model
 
-**Status:** Prompt 18 confirmation-only controls implemented; human review required before Prompt 19
+**Status:** Prompt 19 single-action mock execution controls implemented
 **Security posture:** Local pilot with explicit mocks; not production authentication
 
 ## Security objectives
@@ -196,8 +196,9 @@ future adversarial evaluation.
 
 ## Optional action security
 
-Prompt 18 enables preparation and confirmation for exactly one typed, versioned,
-mock-only action: `candidate.update_start_date`. Execution remains disabled. The
+Prompt 19 enables preparation, confirmation, and execution for exactly one typed,
+versioned, mock-only action: `candidate.update_start_date`. The endpoint rejects
+every non-mock adapter and the implementation has no generic dispatch surface. The
 implemented controls are:
 
 1. Catalog allowlisting and strict per-action input schema; no arbitrary tool name
@@ -216,15 +217,21 @@ implemented controls are:
    produces an unknown/reconciliation state, not fabricated certainty.
 8. Append-oriented audit events for proposal, checks, preview, confirmation,
    tampering/replay, execution attempt, receipt, and final status.
+9. An atomic one-time reservation before adapter dispatch, unique execution row
+   per proposal, and adapter-owned compare-and-set state/receipt storage.
+10. No blind retry: duplicate API calls return the persisted result; ambiguous
+    outcomes remain terminal until manually reconciled by idempotency key.
 
 Frontend code can display an action preview but cannot set confirmation state,
 permission, execution result, or audit outcome.
 
-The proposal and confirmation endpoint details, canonical hash, TTL, exact preview,
-audits, and state diagram are in
-[`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md). Prompt 18 does
-not advertise mock adapter execution capability, call an execution method, create
-an execution record, or claim a candidate change.
+The proposal, confirmation, and execution endpoint details, canonical hash, TTL,
+receipt schema, exact preview, audits, state diagram, reconciliation behavior, and
+manual mock compensation are in
+[`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md). The state
+change is isolated synthetic adapter state. Real Apps Script authentication,
+OrkaATS business validation, Google Sheet execution, and production receipt
+authority remain explicitly unproven.
 
 ## API, browser, and CORS controls
 

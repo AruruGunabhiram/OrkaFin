@@ -23,6 +23,7 @@ from orkafin.domain.events import UserEvent
 from orkafin.domain.recommendations import Recommendation, RecommendationFeedback
 from orkafin.infrastructure.database.models import (
     ActionConfirmationModel,
+    ActionExecutionModel,
     ActionProposalModel,
     AuditRecordModel,
     ConversationModel,
@@ -36,6 +37,7 @@ from orkafin.infrastructure.database.models import (
 from orkafin.infrastructure.database.serializers import (
     action_confirmation_domain,
     action_confirmation_model,
+    action_execution_domain,
     action_execution_model,
     action_proposal_domain,
     action_proposal_model,
@@ -273,6 +275,37 @@ class OrkaFinRepository:
 
     def add_action_execution(self, value: ActionExecutionResult) -> None:
         self._session.add(action_execution_model(value))
+
+    def get_action_execution_for_proposal(self, proposal_id: str) -> ActionExecutionResult | None:
+        stored = self._session.scalar(
+            select(ActionExecutionModel).where(ActionExecutionModel.proposal_id == proposal_id)
+        )
+        return action_execution_domain(stored) if stored is not None else None
+
+    def get_action_execution_by_idempotency_key(
+        self, idempotency_key: str
+    ) -> ActionExecutionResult | None:
+        stored = self._session.scalar(
+            select(ActionExecutionModel).where(
+                ActionExecutionModel.idempotency_key == idempotency_key
+            )
+        )
+        return action_execution_domain(stored) if stored is not None else None
+
+    def update_action_execution(self, value: ActionExecutionResult) -> None:
+        stored = self._session.get(ActionExecutionModel, value.execution_id)
+        if (
+            stored is None
+            or stored.proposal_id != value.proposal_id
+            or stored.idempotency_key != value.idempotency_key.root
+        ):
+            raise KeyError("action execution reservation not found")
+        updated = action_execution_model(value)
+        stored.status = updated.status
+        stored.request_id = updated.request_id
+        stored.adapter_receipt_json = updated.adapter_receipt_json
+        stored.safe_message = updated.safe_message
+        stored.completed_at = updated.completed_at
 
     def append_audit_record(self, value: AuditRecord) -> None:
         """Append a validated audit fact; there is intentionally no update/delete API."""

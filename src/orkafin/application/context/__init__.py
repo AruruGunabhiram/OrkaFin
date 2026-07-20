@@ -8,7 +8,11 @@ from orkafin.application.context.errors import (
     IdentityUnverifiedContextError,
     PageNotSupportedError,
 )
-from orkafin.application.context.service import AuditRecorder, TrustedContextResolutionService
+from orkafin.application.context.service import (
+    AuditRecorder,
+    TrustedContextResolution,
+    TrustedContextResolutionService,
+)
 
 __all__ = [
     "AuditRecorder",
@@ -18,5 +22,6 @@ __all__ = [
     "ContextUnavailableError",
     "IdentityUnverifiedContextError",
     "PageNotSupportedError",
+    "TrustedContextResolution",
     "TrustedContextResolutionService",
 ]
