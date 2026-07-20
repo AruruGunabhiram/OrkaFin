@@ -53,7 +53,29 @@ export function renderAssistantResponse(document, container, response) {
   if (response.request_id) appendText(document, container, "p", "assistant-request-id", `Request ID: ${response.request_id}`);
 }
 
-export function createAssistantRenderer({ document, root, state, onSend, onReset }) {
+function renderRecommendation(document, container, recommendation, notice, onFeedback) {
+  container.replaceChildren();
+  if (!recommendation) {
+    if (notice) appendText(document, container, "p", "assistant-recommendation-notice", notice);
+    return;
+  }
+  appendText(document, container, "h3", "assistant-recommendation-title", recommendation.title);
+  appendText(document, container, "p", "assistant-recommendation-body", recommendation.body);
+  appendText(document, container, "p", "assistant-recommendation-reason", `Why: ${recommendation.rationale}`);
+  if (Array.isArray(recommendation.source_references) && recommendation.source_references.length) {
+    appendText(document, container, "p", "assistant-recommendation-source", `Source: ${recommendation.source_references.join(", ")}`);
+  }
+  const controls = element(document, "div", "assistant-recommendation-controls");
+  [["accepted", "Accept"], ["dismissed", "Dismiss"], ["dismissed", "Disable recommendations", "disabled"]].forEach(([type, label, preference]) => {
+    const button = element(document, "button", "assistant-recommendation-action", label);
+    button.type = "button";
+    button.addEventListener("click", () => onFeedback(type, preference));
+    controls.append(button);
+  });
+  container.append(controls);
+}
+
+export function createAssistantRenderer({ document, root, state, onSend, onFeedback, onReset }) {
   root.replaceChildren();
   const launcher = element(document, "button", "assistant-launcher", "Ask OrkaFin");
   launcher.type = "button";
@@ -70,6 +92,8 @@ export function createAssistantRenderer({ document, root, state, onSend, onReset
   header.append(close);
   const response = element(document, "div", "assistant-response");
   response.setAttribute("aria-live", "polite");
+  const recommendation = element(document, "section", "assistant-recommendation");
+  recommendation.setAttribute("aria-live", "polite");
   const suggestions = element(document, "div", "assistant-suggestions");
   appendText(document, suggestions, "p", "", "Try a question");
   SUGGESTED_PROMPTS.forEach((prompt) => {
@@ -101,7 +125,7 @@ export function createAssistantRenderer({ document, root, state, onSend, onReset
   const status = element(document, "p", "assistant-status", "");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
-  panel.append(header, response, suggestions, form, reset, status);
+  panel.append(header, recommendation, response, suggestions, form, reset, status);
   root.append(launcher, panel);
 
   launcher.addEventListener("click", () => state.open());
@@ -119,6 +143,7 @@ export function createAssistantRenderer({ document, root, state, onSend, onReset
     send.disabled = snapshot.isSending;
     send.textContent = snapshot.isSending ? "Sending…" : "Send";
     status.textContent = snapshot.status;
+    renderRecommendation(document, recommendation, snapshot.recommendation, snapshot.recommendationNotice, onFeedback);
     if (snapshot.error) {
       response.replaceChildren();
       const errorLabel = {

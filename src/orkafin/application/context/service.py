@@ -19,6 +19,7 @@ from orkafin.adapters import (
     EntityTextValue,
     EntityTimestampValue,
     GetAvailableActionsRequest,
+    GetAvailableFeaturesRequest,
     GetPageMetadataRequest,
     GetSelectedEntitySummaryRequest,
     GetUserPermissionsRequest,
@@ -224,6 +225,14 @@ class TrustedContextResolutionService:
         available_action_ids = tuple(
             action_id for action_id in actions_response.action_ids if action_id in fact_action_ids
         )
+        features_response = await adapter.get_available_features(
+            GetAvailableFeaturesRequest(
+                request_id=request_id,
+                app_id=app_id,
+                trusted_identity=identity,
+                context=application_context,
+            )
+        )
 
         candidate_summary: CandidateSummary | None = None
         candidate_response_id: str | None = None
@@ -282,6 +291,7 @@ class TrustedContextResolutionService:
             page_response_id=page_response.adapter_response_id,
             permissions_response_id=permissions_response.adapter_response_id,
             actions_response_id=actions_response.adapter_response_id,
+            features_response_id=features_response.adapter_response_id,
             selected_entity=selected_entity,
             candidate_response_id=candidate_response_id,
         )
@@ -296,6 +306,7 @@ class TrustedContextResolutionService:
             workspace=application_context.workspace,
             selected_entity=selected_entity,
             permissions=permissions_response.authorization_facts.permissions,
+            available_feature_ids=features_response.feature_ids,
             available_action_ids=available_action_ids,
             candidate_summary=candidate_summary,
             resolved_at=application_context.resolved_at,
@@ -404,6 +415,7 @@ def _resolved_trust(
     page_response_id: str,
     permissions_response_id: str,
     actions_response_id: str,
+    features_response_id: str,
     selected_entity: SelectedEntityRef | None,
     candidate_response_id: str | None,
 ) -> ResolvedContextTrust:
@@ -421,6 +433,7 @@ def _resolved_trust(
         selected_entity=trusted(context_response_id) if selected_entity is not None else None,
         permissions=trusted(permissions_response_id),
         available_actions=trusted(actions_response_id),
+        available_features=trusted(features_response_id),
         candidate_summary=(
             trusted(candidate_response_id) if candidate_response_id is not None else None
         ),

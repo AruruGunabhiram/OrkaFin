@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from typing import Annotated, ClassVar
 
 from pydantic import (
@@ -37,17 +38,25 @@ MetadataValue = StrictStr | StrictInt | StrictFloat | StrictBool | None
 
 _FORBIDDEN_KEY_PARTS = frozenset(
     {
+        "address",
         "authorization",
         "cookie",
+        "content",
         "email",
+        "message",
+        "name",
         "notes",
         "password",
+        "phone",
         "prompt",
+        "question",
         "raw_content",
         "secret",
+        "ssn",
         "token",
     }
 )
+_EMAIL_PATTERN = re.compile(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b")
 
 
 class BoundedMetadata(RootModel[dict[MetadataKey, MetadataValue]]):
@@ -69,6 +78,8 @@ class BoundedMetadata(RootModel[dict[MetadataKey, MetadataValue]]):
                 raise ValueError(f"metadata key is not allowed: {key}")
             if isinstance(value, str) and len(value) > 256:
                 raise ValueError("metadata string values may contain at most 256 characters")
+            if isinstance(value, str) and _EMAIL_PATTERN.search(value):
+                raise ValueError("metadata values must not contain email addresses")
             if isinstance(value, float) and not math.isfinite(value):
                 raise ValueError("metadata numbers must be finite")
         serialized = json.dumps(self.root, separators=(",", ":"), sort_keys=True)

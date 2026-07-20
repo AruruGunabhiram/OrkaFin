@@ -23,6 +23,7 @@ from orkafin.domain.catalog import (
     PageCatalogItem,
 )
 from orkafin.domain.context import AppMetadata, Role
+from orkafin.domain.events import UserEventType
 from orkafin.domain.identifiers import Permission
 from orkafin.domain.recommendations import RecommendationKind
 
@@ -101,6 +102,10 @@ class RecommendationCatalogItem(DomainModel):
     feature_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
     action_id: LowercaseIdentifier | None = None
     related_rule_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
+    recent_event_types: tuple[UserEventType, ...] = Field(default=(), max_length=12)
+    allow_recurrence: bool = False
+    impression_window_seconds: int | None = Field(default=None, ge=60, le=2_592_000)
+    dismissal_suppression_seconds: int | None = Field(default=None, ge=60, le=31_536_000)
     provenance: CatalogProvenance
 
 

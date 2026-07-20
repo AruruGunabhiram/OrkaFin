@@ -21,7 +21,7 @@ from orkafin.domain.base import (
     UtcDatetime,
 )
 from orkafin.domain.context import WorkspaceRef
-from orkafin.domain.identifiers import RequestId
+from orkafin.domain.identifiers import RequestId, SafeReference
 
 FeedbackComment = Annotated[
     str,
@@ -68,6 +68,7 @@ class Recommendation(DomainModel):
     feature_id: LowercaseIdentifier | None = None
     action_id: LowercaseIdentifier | None = None
     source_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=20)
+    source_references: tuple[SafeReference, ...] = Field(default=(), max_length=20)
     created_at: UtcDatetime
     expires_at: UtcDatetime | None = None
     request_id: RequestId
@@ -114,3 +115,11 @@ class RecommendationFeedback(DomainModel):
     comment: FeedbackComment | None = None
     submitted_at: UtcDatetime
     request_id: RequestId
+
+
+class RecommendationPreference(StrEnum):
+    """A user-controlled delivery preference for deterministic recommendations."""
+
+    ENABLED = "enabled"
+    REDUCED = "reduced"
+    DISABLED = "disabled"

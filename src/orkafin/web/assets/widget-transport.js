@@ -7,6 +7,26 @@ export class AssistantTransportError extends Error {
 }
 
 export function createAssistantTransport({ baseUrl = "", fetchFn = fetch, timeoutMs = 5000 } = {}) {
+  async function request(path, body) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchFn(`${baseUrl}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      const requestId = response.headers.get("X-Request-ID");
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new AssistantTransportError("api_error", payload?.message || "The request could not be completed.", requestId);
+      }
+      return payload;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
   return {
     async query({ question, context, conversationId }) {
       const controller = new AbortController();
@@ -44,6 +64,14 @@ export function createAssistantTransport({ baseUrl = "", fetchFn = fetch, timeou
       } finally {
         clearTimeout(timeout);
       }
+    },
+    async evaluateRecommendations({ context }) {
+      return request("/api/v1/recommendations:evaluate", { context });
+    },
+    async submitFeedback({ recommendationId, feedbackType, context, preference }) {
+      const body = { recommendation_id: recommendationId, feedback_type: feedbackType, context };
+      if (preference) body.preference = preference;
+      return request("/api/v1/feedback", body);
     },
   };
 }

@@ -292,6 +292,7 @@ class ResolvedContextTrust(DomainModel):
     selected_entity: ContextComponentTrust | None = None
     permissions: ContextComponentTrust
     available_actions: ContextComponentTrust
+    available_features: ContextComponentTrust | None = None
     candidate_summary: ContextComponentTrust | None = None
 
 
@@ -327,6 +328,7 @@ class ResolvedPageContext(DomainModel):
     workspace: WorkspaceRef
     selected_entity: SelectedEntityRef | None = None
     permissions: tuple[Permission, ...] = Field(max_length=100)
+    available_feature_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=100)
     available_action_ids: tuple[LowercaseIdentifier, ...] = Field(default=(), max_length=50)
     candidate_summary: CandidateSummary | None = None
     resolved_at: UtcDatetime

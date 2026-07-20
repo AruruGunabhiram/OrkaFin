@@ -136,9 +136,36 @@ def recommendation_model(value: Recommendation) -> RecommendationModel:
         feature_id=value.feature_id,
         action_id=value.action_id,
         source_ids=list(value.source_ids),
+        source_references=[reference.root for reference in value.source_references],
         created_at=value.created_at,
         expires_at=value.expires_at,
         request_id=value.request_id.root,
+    )
+
+
+def recommendation_domain(value: RecommendationModel) -> Recommendation:
+    from orkafin.domain.context import WorkspaceRef
+    from orkafin.domain.identifiers import RequestId, SafeReference
+    from orkafin.domain.recommendations import RecommendationKind, RecommendationStatus
+
+    return Recommendation(
+        schema_version=cast(SchemaVersion, value.schema_version),
+        recommendation_id=value.recommendation_id,
+        rule_id=value.rule_id,
+        kind=RecommendationKind(value.kind),
+        status=RecommendationStatus(value.status),
+        recipient_user_id=value.recipient_user_id,
+        workspace=WorkspaceRef(workspace_id=value.workspace_id, app_id=value.workspace_app_id),
+        title=value.title,
+        body=value.body,
+        rationale=value.rationale,
+        feature_id=value.feature_id,
+        action_id=value.action_id,
+        source_ids=tuple(value.source_ids),
+        source_references=tuple(SafeReference(root=item) for item in value.source_references),
+        created_at=_utc(value.created_at),
+        expires_at=_utc(value.expires_at) if value.expires_at is not None else None,
+        request_id=RequestId(root=value.request_id),
     )
 
 

@@ -122,6 +122,7 @@ class RecommendationModel(Base):
     feature_id: Mapped[str | None] = mapped_column(String(64))
     action_id: Mapped[str | None] = mapped_column(String(64))
     source_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    source_references: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     request_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
@@ -178,6 +179,22 @@ class RecommendationFeedbackModel(Base):
     request_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
 
     recommendation: Mapped[RecommendationModel] = relationship(back_populates="feedback")
+
+
+class RecommendationPreferenceModel(Base):
+    __tablename__ = "recommendation_preferences"
+    __table_args__ = (
+        CheckConstraint(
+            "preference IN ('enabled', 'reduced', 'disabled')",
+            name="ck_recommendation_preferences_preference",
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workspace_app_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    preference: Mapped[str] = mapped_column(String(16), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ActionProposalModel(Base):

@@ -187,3 +187,26 @@ python -m orkafin.knowledge.validate knowledge/orka_ats
 
 The compatibility command `python scripts/validate_knowledge.py` invokes the same
 catalog-aware validation against the repository starter catalog.
+
+## Prompt 17 recommendation rules
+
+`knowledge/orka_ats/recommendations.yaml` is the only recommendation-rule
+source for Local V1. Each active rule declares its target feature/action,
+required permissions, pages, recent meaningful event types, recurrence policy,
+and optional impression/dismissal durations. Loader cross-reference validation
+rejects unknown feature, action, page, permission, and related-rule IDs before an
+application starts.
+
+The current rule, `review_recruitment_pipeline`, recommends the approved
+`candidate_stage_tracking` feature only on `recruitment_pipeline` after a recent
+`page_viewed` event. Evaluation requires all of: active rule/catalog records,
+trusted resolved page, verified permissions, and the owning adapter's currently
+approved feature IDs. It returns the rule and feature catalog references with an
+explicit reason. A rule never grants access or proposes inaccessible action.
+
+Default delivery controls are versioned settings: one impression per
+rule/user/workspace per 86,400 seconds, dismissal suppression for 2,592,000
+seconds (30 days), and a sevenfold impression window for a `reduced` preference.
+Rule fields can override the first two values. Acceptance prevents future
+delivery unless `allow_recurrence: true`; the current rule does not recur.
+Evaluation is deterministic and records no clickstream or model-training data.

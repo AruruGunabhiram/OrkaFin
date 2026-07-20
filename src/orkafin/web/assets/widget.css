@@ -17,6 +17,12 @@ button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3p
 .assistant-header h2 { margin: 0; font-size: 1.1rem; }
 .assistant-close, .assistant-reset, .assistant-suggestion { border: 1px solid #64748b; border-radius: .4rem; background: #fff; color: #172033; padding: .42rem .58rem; }
 .assistant-response { min-height: 4rem; margin: 1rem 0; line-height: 1.45; }
+.assistant-recommendation { margin: 1rem 0; padding: .8rem; border: 1px solid #93c5fd; border-radius: .55rem; background: #eff6ff; line-height: 1.4; }
+.assistant-recommendation:empty { display: none; }
+.assistant-recommendation-title { margin: 0 0 .35rem; font-size: .95rem; }
+.assistant-recommendation-body, .assistant-recommendation-reason, .assistant-recommendation-source, .assistant-recommendation-notice { margin: .35rem 0; font-size: .86rem; }
+.assistant-recommendation-controls { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .65rem; }
+.assistant-recommendation-action { border: 1px solid #64748b; border-radius: .35rem; background: #fff; padding: .35rem .5rem; font-size: .82rem; }
 .assistant-response-kind, .assistant-sources h3 { font-size: .92rem; margin: 0 0 .35rem; color: #334155; }
 .assistant-response-text { margin: 0; white-space: pre-wrap; }
 .assistant-steps { padding-left: 1.3rem; }

@@ -102,6 +102,23 @@ def test_rejects_unknown_permissions_and_actions(tmp_path: Path) -> None:
         load_knowledge(root)
 
 
+def test_rejects_unknown_recommendation_rule_references(tmp_path: Path) -> None:
+    root = catalog_copy(tmp_path)
+    recommendations_path = root / "recommendations.yaml"
+    recommendations = read_yaml(recommendations_path)
+    rule_items = recommendations["recommendations"]
+    assert isinstance(rule_items, list)
+    assert isinstance(rule_items[0], dict)
+    rule_items[0]["feature_ids"] = ["missing_feature"]
+    write_yaml(recommendations_path, recommendations)
+
+    with pytest.raises(
+        KnowledgeValidationError,
+        match="unknown recommendation rule review_recruitment_pipeline feature",
+    ):
+        load_knowledge(root)
+
+
 def test_rejects_invalid_content_versions(tmp_path: Path) -> None:
     root = catalog_copy(tmp_path)
     manifest_path = root / "manifest.yaml"

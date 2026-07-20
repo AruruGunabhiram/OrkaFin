@@ -12,6 +12,10 @@ recommendations:
     feature_ids: [candidate_stage_tracking]
     action_id: null
     related_rule_ids: []
+    recent_event_types: [page_viewed]
+    allow_recurrence: false
+    impression_window_seconds: 86400
+    dismissal_suppression_seconds: 2592000
     provenance:
       schema_version: v1
       content_version: 0.1.0

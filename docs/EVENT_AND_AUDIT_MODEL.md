@@ -102,3 +102,30 @@ handling policies.
   `action_executions.idempotency_key` are independent unique, bounded keys. A
   later execution workflow must resolve/reuse the proposal key before adapter
   work and reject duplicate execution keys rather than run a second write.
+
+## Prompt 17 meaningful events and recommendation feedback
+
+`POST /api/v1/events` accepts only browser-originated `app_opened`,
+`page_viewed`, and `candidate_selected` events. OrkaFin itself records
+`assistant_query_submitted`, recommendation impressions/outcomes, feedback, and
+future action lifecycle events. The complete validated event vocabulary is:
+
+`app_opened`, `page_viewed`, `candidate_selected`, `assistant_query_submitted`,
+`recommendation_shown`, `recommendation_accepted`,
+`recommendation_dismissed`, `feedback_submitted`, `action_proposed`,
+`action_confirmed`, `action_succeeded`, and `action_failed`.
+
+Events bind actor, workspace, app, and any candidate reference to freshly
+resolved context; callers cannot supply these fields. Metadata is a maximum of
+16 scalar entries / 2 KiB. It rejects sensitive key names and email-like values,
+so events never retain full assistant questions, candidate notes, email,
+credentials, tokens, prompts, hidden fields, or keystrokes.
+
+Recommendation feedback is submitted to `POST /api/v1/feedback` with a
+recommendation ID, `helpful`, `not_helpful`, `accepted`, or `dismissed`, current
+context hint, optional bounded comment, and optional preference (`enabled`,
+`reduced`, or `disabled`). The service validates that the recommendation belongs
+to the resolved user/workspace before storing it. Preferences live in the
+OrkaFin-only `recommendation_preferences` table; they do not modify OrkaATS.
+The `9c2e4f6a1b73` migration adds that table and source-reference storage for
+recommendations.

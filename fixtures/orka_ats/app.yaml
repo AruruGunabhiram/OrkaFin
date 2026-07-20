@@ -13,25 +13,25 @@ pages:
     page_version: 1.0.0
     title: Candidate dashboard
     purpose: Review permitted recruiting work and recent meaningful events.
-    feature_ids: [candidate_summary, recent_recruiting_events]
+    feature_ids: [candidate_directory, candidate_stage_tracking]
     safe_reference: app://orka_ats/pages/candidate_dashboard
   - page_id: candidate_list
     page_version: 1.0.0
     title: Candidate list
     purpose: Search only candidate records currently visible to the user.
-    feature_ids: [candidate_search]
+    feature_ids: [candidate_directory]
     safe_reference: app://orka_ats/pages/candidate_list
   - page_id: candidate_profile
     page_version: 1.0.0
     title: Candidate profile
     purpose: View a permission-filtered candidate summary.
-    feature_ids: [candidate_summary]
+    feature_ids: [candidate_profile_review]
     safe_reference: app://orka_ats/pages/candidate_profile
   - page_id: recruitment_pipeline
     page_version: 1.0.0
     title: Recruitment pipeline
     purpose: Review permitted pipeline context without raw candidate exports.
-    feature_ids: [candidate_search, recent_recruiting_events]
+    feature_ids: [candidate_stage_tracking]
     safe_reference: app://orka_ats/pages/recruitment_pipeline
   - page_id: candidate_creation_form
     page_version: 1.0.0
@@ -43,5 +43,5 @@ pages:
     page_version: 1.0.0
     title: Recruiter filters
     purpose: Display recruiting filter context without exposing unrestricted records.
-    feature_ids: [candidate_search]
+    feature_ids: [recruiter_filtering]
     safe_reference: app://orka_ats/pages/recruiter_filters

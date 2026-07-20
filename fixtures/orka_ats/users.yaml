@@ -15,7 +15,7 @@ users:
       - recruiter_filters
       - recruitment_pipeline
     permissions: [candidate.create, candidate.view]
-    available_features: [candidate_search, candidate_summary, recent_recruiting_events]
+    available_features: [candidate_creation, candidate_directory, candidate_profile_review, candidate_stage_tracking, recruiter_filtering]
     available_action_ids: []
     record_grants:
       CAND-1042: [display_name, email, recruiter, recruitment_stage, resume_link, start_date]
@@ -28,7 +28,7 @@ users:
     workspace_id: workspace_recruiting_alpha
     allowed_page_ids: [candidate_dashboard, candidate_list, candidate_profile, recruitment_pipeline]
     permissions: [candidate.view]
-    available_features: [candidate_search, candidate_summary, recent_recruiting_events]
+    available_features: [candidate_directory, candidate_profile_review, candidate_stage_tracking, recruiter_filtering]
     available_action_ids: []
     record_grants:
       CAND-1042: [display_name, recruiter, recruitment_stage]
@@ -47,7 +47,7 @@ users:
       - recruiter_filters
       - recruitment_pipeline
     permissions: [candidate.create, candidate.update_start_date, candidate.view]
-    available_features: [candidate_search, candidate_summary, recent_recruiting_events]
+    available_features: [candidate_directory, candidate_profile_review, candidate_stage_tracking]
     available_action_ids: [candidate.update_start_date]
     record_grants:
       CAND-1042: [created_at, display_name, email, recruiter, recruitment_stage, resume_link, start_date, updated_at]

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from orkafin.application.context import TrustedContextResolutionService
+from orkafin.application.recommendations import MeaningfulEventService
 from orkafin.application.response_generation import (
     ResponseGenerationRequest,
     ResponseGenerationService,
@@ -22,7 +23,9 @@ from orkafin.domain.base import DataOwner, DomainModel, Identifier, ShortText
 from orkafin.domain.catalog import VerificationStatus
 from orkafin.domain.context import ClientContextHint, ResolvedPageContext
 from orkafin.domain.conversations import Conversation, ConversationStatus, Message, MessageRole
+from orkafin.domain.events import UserEventType
 from orkafin.domain.identifiers import Permission, RequestId, SafeReference
+from orkafin.domain.metadata import BoundedMetadata
 from orkafin.domain.responses import AssistantResponse
 from orkafin.domain.sources import RetrievedSource, SourceType
 from orkafin.infrastructure.database.repositories import OrkaFinRepository
@@ -56,12 +59,14 @@ class AssistantQueryService:
         context_service: TrustedContextResolutionService,
         retrieval_service: DeterministicRetrievalService,
         response_service: ResponseGenerationService,
+        event_service: MeaningfulEventService | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._database = database
         self._context_service = context_service
         self._retrieval_service = retrieval_service
         self._response_service = response_service
+        self._event_service = event_service
         self._clock = clock or (lambda: datetime.now(UTC))
 
     async def query(self, value: AssistantQuery, *, request_id: RequestId) -> AssistantResponse:
@@ -71,6 +76,13 @@ class AssistantQueryService:
             request_id=request_id,
             include_candidate_summary=_asks_for_candidate_summary(value.question),
         )
+        if self._event_service is not None:
+            self._event_service.record(
+                context=context,
+                event_type=UserEventType.ASSISTANT_QUERY_SUBMITTED,
+                metadata=BoundedMetadata(root={"query_length": len(value.question)}),
+                request_id=request_id,
+            )
         conversation, history = self._load_or_create_conversation(
             supplied_id=value.conversation_id, context=context
         )

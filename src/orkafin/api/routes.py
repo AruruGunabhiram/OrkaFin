@@ -9,6 +9,15 @@ from orkafin.adapters import AdapterCapability, GetAppMetadataRequest
 from orkafin.api.schemas import ConversationResponse, FeatureCatalogResponse
 from orkafin.application.assistant import AssistantQuery, AssistantQueryService
 from orkafin.application.context import TrustedContextResolutionService
+from orkafin.application.recommendations import (
+    FeedbackRequest,
+    FeedbackResponse,
+    MeaningfulEventRequest,
+    MeaningfulEventService,
+    RecommendationEvaluationRequest,
+    RecommendationEvaluationResponse,
+    RecommendationService,
+)
 from orkafin.application.response_generation import ResponseGenerationService
 from orkafin.application.retrieval import DeterministicRetrievalService
 from orkafin.core.dependencies import ApplicationDependencies
@@ -16,6 +25,7 @@ from orkafin.core.request_id import get_request_id, new_request_id
 from orkafin.domain.base import LowercaseIdentifier
 from orkafin.domain.context import AppMetadata, ClientContextHint, ResolvedPageContext
 from orkafin.domain.errors import ApiError
+from orkafin.domain.events import UserEvent
 from orkafin.domain.identifiers import RequestId
 from orkafin.domain.responses import AssistantResponse
 
@@ -38,6 +48,17 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
         trusted_session_resolver=dependencies.trusted_session_resolver,
         audit_recorder=dependencies.audit_recorder,
     )
+    event_service = MeaningfulEventService(
+        database=dependencies.database,
+        context_service=context_service,
+    )
+    recommendation_service = RecommendationService(
+        database=dependencies.database,
+        context_service=context_service,
+        knowledge_index=dependencies.knowledge_index,
+        settings=dependencies.settings,
+        event_service=event_service,
+    )
     assistant_service = AssistantQueryService(
         database=dependencies.database,
         context_service=context_service,
@@ -45,6 +66,7 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
             knowledge_index=dependencies.knowledge_index
         ),
         response_service=ResponseGenerationService(provider=dependencies.response_provider),
+        event_service=event_service,
     )
 
     def request_id_for(request: Request) -> RequestId:
@@ -127,6 +149,51 @@ def create_router(dependencies: ApplicationDependencies) -> APIRouter:
     async def assistant_query(value: AssistantQuery, request: Request) -> AssistantResponse:
         """Run one trusted, grounded assistant turn and persist safe visible messages."""
         return await assistant_service.query(value, request_id=request_id_for(request))
+
+    @router.post(
+        "/api/v1/events",
+        response_model=UserEvent,
+        responses={
+            status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
+            status.HTTP_403_FORBIDDEN: {"model": ApiError},
+        },
+        tags=["events"],
+    )
+    async def submit_event(value: MeaningfulEventRequest, request: Request) -> UserEvent:
+        """Record a small allowlisted product event after trusted context resolution."""
+        return await event_service.submit(value, request_id=request_id_for(request))
+
+    @router.post(
+        "/api/v1/recommendations:evaluate",
+        response_model=RecommendationEvaluationResponse,
+        responses={
+            status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
+            status.HTTP_403_FORBIDDEN: {"model": ApiError},
+            status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ApiError},
+        },
+        tags=["recommendations"],
+    )
+    async def evaluate_recommendations(
+        value: RecommendationEvaluationRequest, request: Request
+    ) -> RecommendationEvaluationResponse:
+        """Evaluate active source-backed rules; this endpoint never opens the widget itself."""
+        return await recommendation_service.evaluate(value, request_id=request_id_for(request))
+
+    @router.post(
+        "/api/v1/feedback",
+        response_model=FeedbackResponse,
+        responses={
+            status.HTTP_401_UNAUTHORIZED: {"model": ApiError},
+            status.HTTP_403_FORBIDDEN: {"model": ApiError},
+            status.HTTP_404_NOT_FOUND: {"model": ApiError},
+        },
+        tags=["feedback"],
+    )
+    async def submit_feedback(value: FeedbackRequest, request: Request) -> FeedbackResponse:
+        """Persist feedback only for a recommendation owned by the verified user."""
+        return await recommendation_service.submit_feedback(
+            value, request_id=request_id_for(request)
+        )
 
     @router.get(
         "/api/v1/conversations/{conversation_id}",
