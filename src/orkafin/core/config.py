@@ -84,6 +84,12 @@ class Settings(BaseSettings):
             parsed = urlparse(origin)
             if origin == "*":
                 raise ValueError("wildcard CORS origins are not allowed")
+            if parsed.username is not None or parsed.password is not None:
+                raise ValueError("allowed_origins must not contain user information")
+            try:
+                _ = parsed.port
+            except ValueError as error:
+                raise ValueError("allowed_origins must contain a valid port") from error
             if parsed.scheme not in {"http", "https"} or parsed.hostname not in {
                 "localhost",
                 "127.0.0.1",

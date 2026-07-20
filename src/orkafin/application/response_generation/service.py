@@ -12,6 +12,7 @@ from orkafin.domain.base import DomainModel, Identifier, LowercaseIdentifier, Sh
 from orkafin.domain.candidate import CandidateFieldSensitivity
 from orkafin.domain.catalog import VerificationStatus
 from orkafin.domain.context import ResolvedPageContext
+from orkafin.domain.privacy import redact_sensitive_text
 from orkafin.domain.responses import (
     AssistantContent,
     AssistantResponse,
@@ -110,8 +111,8 @@ class ResponseGenerationService:
                 if field.sensitivity is CandidateFieldSensitivity.STANDARD:
                     candidate_fields.append(
                         SafeCandidateField(
-                            label=_bounded_text(field.label, 120),
-                            value=_bounded_text(str(field.value.value), 240),
+                            label=_bounded_text(redact_sensitive_text(field.label), 120),
+                            value=_bounded_text(redact_sensitive_text(str(field.value.value)), 240),
                         )
                     )
         provider_intent = _effective_intent(request.intent, sources)
@@ -123,9 +124,9 @@ class ResponseGenerationService:
         )
         history = BoundedConversationHistoryPolicy().minimize(request.conversation_history)
         return ProviderRequest(
-            user_question=request.user_question,
+            user_question=redact_sensitive_text(request.user_question),
             context=SafeResolvedContextSummary(
-                app_name=context.app.display_name,
+                app_name=redact_sensitive_text(context.app.display_name),
                 page_id=context.page_id,
                 selected_entity_type=(
                     context.selected_entity.entity_type
@@ -209,10 +210,10 @@ def _minimize_source(
     return ApprovedProviderSource(
         source_id=source.source_id,
         source_type=source.source_type,
-        title=source.title,
-        excerpt=source.excerpt[:500],
+        title=redact_sensitive_text(source.title),
+        excerpt=redact_sensitive_text(source.excerpt)[:500],
         verification_status=source.verification_status,
-        approved_steps=source.instruction_steps[:8],
+        approved_steps=tuple(redact_sensitive_text(step) for step in source.instruction_steps[:8]),
         feature_ids=feature_ids,
         action_ids=action_ids,
     )

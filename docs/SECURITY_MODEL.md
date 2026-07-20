@@ -1,6 +1,6 @@
 # Local V1 Security Model
 
-**Status:** Prompt 19 single-action mock execution controls implemented
+**Status:** Prompt 20 Local V1 security and regression controls exercised
 **Security posture:** Local pilot with explicit mocks; not production authentication
 
 ## Security objectives
@@ -250,8 +250,12 @@ can ignore it.
 
 Secrets come from the server environment or a later secret store. `.env` values
 are not committed, frontend JavaScript contains no secrets, and safe examples use
-non-sensitive placeholders. Logging applies a central allowlist/redaction policy
-to headers, query parameters, request bodies, adapter payloads, and exceptions.
+non-sensitive placeholders. Logging uses key- and content-based redaction and does
+not log request bodies or provider/adapter payloads. Recognizable credential and
+email values are minimized before provider input and retained user-visible message
+or feedback construction; event and audit metadata rejects sensitive keys/values.
+The repository release gate runs the bounded current-tree secret scan documented in
+[`TEST_STRATEGY.md`](TEST_STRATEGY.md).
 
 Audit records are themselves sensitive because they reveal users, target IDs,
 denials, and activity patterns. V1 exposes no general audit browsing endpoint.
@@ -299,7 +303,7 @@ candidate-note processing, durable candidate caching, a new provider data policy
 new executable actions, or credentialed cross-origin browser access. No local test
 result may be presented as evidence that those production risks are solved.
 
-The Prompt 14 human checkpoint must explicitly accept the Prompt Contract 1.0.0
-shape, conservative false-negative behavior, history-classification obligation,
-catalog-poisoning risk, external-provider gaps, and the finite scope of red-team
-fixtures before Prompt 15 exposes an assistant endpoint.
+Prompt 20 tests the Prompt Contract 1.0.0 shape and the Local V1 controls above, but
+does not eliminate conservative false negatives, history-classification mistakes,
+catalog poisoning, external-provider gaps, or the finite scope of red-team fixtures.
+Those residual risks still require human acceptance before a trust-boundary change.

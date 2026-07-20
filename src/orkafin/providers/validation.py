@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from orkafin.domain.privacy import contains_sensitive_text
 from orkafin.providers.contracts import (
     ClaimKind,
     DraftKind,
@@ -83,6 +84,8 @@ class ProviderOutputValidator:
             raise ProviderDraftRejected("provider used a receipt outside the allowlist")
         if any(claim.kind is ClaimKind.ACTION_SUCCESS for claim in draft.claims):
             raise ProviderDraftRejected("provider output cannot attest action success")
+        if contains_sensitive_text(" ".join((draft.text, *draft.steps))):
+            raise ProviderDraftRejected("provider output contains sensitive text")
 
         # This narrow phrase recognizer is defense in depth for a provider that lies
         # about its structured claim kind; trust boundaries and allowlists remain primary.

@@ -15,6 +15,7 @@ from orkafin.core.dependencies import ApplicationDependencies, build_dependencie
 from orkafin.core.settings import Settings
 from orkafin.infrastructure.database.base import Base
 from orkafin.knowledge import KnowledgeIndex
+from orkafin.providers.base import ResponseProvider
 
 
 def build_context_application(
@@ -23,6 +24,7 @@ def build_context_application(
     subject_reference: str | None = "limited_viewer",
     adapter_factory: Callable[[], OrkaApplicationAdapter] = MockOrkaATSAdapter,
     knowledge_index: KnowledgeIndex | None = None,
+    response_provider: ResponseProvider | None = None,
 ) -> tuple[FastAPI, ApplicationDependencies]:
     """Build an isolated migrated-enough API with a server-injected synthetic session."""
     settings = Settings(
@@ -43,6 +45,7 @@ def build_context_application(
         adapter_registry=registry,
         trusted_session_resolver=StaticTrustedSessionResolver(subject_reference),
         knowledge_index=knowledge_index,
+        response_provider=response_provider,
     )
     Base.metadata.create_all(dependencies.database.engine)
     return create_app(dependencies=dependencies), dependencies

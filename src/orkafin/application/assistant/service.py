@@ -26,6 +26,7 @@ from orkafin.domain.conversations import Conversation, ConversationStatus, Messa
 from orkafin.domain.events import UserEventType
 from orkafin.domain.identifiers import Permission, RequestId, SafeReference
 from orkafin.domain.metadata import BoundedMetadata
+from orkafin.domain.privacy import redact_sensitive_text
 from orkafin.domain.responses import AssistantResponse
 from orkafin.domain.sources import RetrievedSource, SourceType
 from orkafin.infrastructure.database.repositories import OrkaFinRepository
@@ -71,10 +72,11 @@ class AssistantQueryService:
 
     async def query(self, value: AssistantQuery, *, request_id: RequestId) -> AssistantResponse:
         """Answer one request after context, ownership, retrieval, and output checks."""
+        safe_question = redact_sensitive_text(value.question)
         context = await self._context_service.resolve(
             client_hint=value.context,
             request_id=request_id,
-            include_candidate_summary=_asks_for_candidate_summary(value.question),
+            include_candidate_summary=_asks_for_candidate_summary(safe_question),
         )
         if self._event_service is not None:
             self._event_service.record(
@@ -87,13 +89,13 @@ class AssistantQueryService:
             supplied_id=value.conversation_id, context=context
         )
         user_message_at = self._clock()
-        intent = _intent_for(value.question, context)
-        retrieval = self._retrieve(value.question, context)
+        intent = _intent_for(safe_question, context)
+        retrieval = self._retrieve(safe_question, context)
         if intent is ResponseIntent.CANDIDATE_SUMMARY:
             retrieval = _with_candidate_summary_source(retrieval, context)
         response = self._response_service.generate(
             ResponseGenerationRequest(
-                user_question=value.question,
+                user_question=safe_question,
                 context=context,
                 retrieval=retrieval,
                 intent=intent,
@@ -104,7 +106,7 @@ class AssistantQueryService:
         )
         self._persist_turn(
             conversation=conversation,
-            question=value.question,
+            question=safe_question,
             user_message_at=user_message_at,
             response=response,
         )

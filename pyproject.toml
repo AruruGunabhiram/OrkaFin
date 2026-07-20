@@ -23,6 +23,7 @@ dev = [
     "httpx>=0.27,<1",
     "mypy>=1.10,<2",
     "pytest>=8.2,<9",
+    "pytest-cov>=6,<8",
     "ruff>=0.5,<1",
 ]
 
@@ -33,6 +34,16 @@ include = ["orkafin*"]
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["orkafin"]
+
+[tool.coverage.report]
+fail_under = 82.0
+precision = 1
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 target-version = "py311"

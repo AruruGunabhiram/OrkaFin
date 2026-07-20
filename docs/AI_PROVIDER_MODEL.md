@@ -1,6 +1,6 @@
 # AI Provider Model
 
-**Status:** Prompt 14 implemented; human security review is required before Prompt 15
+**Status:** Prompt 20 adversarially reverified for the Local V1 provider boundary
 
 ## Purpose and authority boundary
 
@@ -98,10 +98,11 @@ injected article body without claiming that a malicious approved summary is safe
 
 `BoundedConversationHistoryPolicy` admits only server-classified, provider-safe
 `user` and `assistant` entries. It drops `system`/`developer` roles and entries marked
-sensitive, then keeps the newest data within 6 messages, 300 characters per message,
-and 1,200 characters total. History can help continuity but is never grounding.
-Prompt 15 must derive those classifications from trusted server state, never from a
-client-provided `sensitivity` flag.
+sensitive, content-redacts recognizable email/credential values, then keeps the
+newest data within 6 messages, 300 characters per message, and 1,200 characters
+total. History can help continuity but is never grounding. The assistant derives
+history from server-owned persisted `Message` records; clients cannot submit a
+history role or `sensitivity` classification.
 
 ## Output validation and grounding
 
@@ -182,8 +183,10 @@ adapter remains a minimal local integration, not production-ready.
 - Raw help content still affects deterministic retrieval matching even though it is
   excluded from provider evidence, so poisoned text can affect ranking or cause a
   safe but irrelevant result.
-- History safety depends on correct server-side sensitivity classification in Prompt
-  15. Truncation can also remove qualifying context and cause safe false negatives.
+- All current user-visible messages are treated as provider-safe untrusted history
+  after finite content-pattern redaction. Semantically sensitive text not recognized
+  by those patterns may still cross the optional provider boundary. Truncation can
+  also remove qualifying context and cause safe false negatives.
 - Candidate-source binding relies on trusted internal orchestration and the existing
   resolved-context adapter evidence. Future source construction must preserve that
   binding and must not accept client-created `RetrievedSource` objects.
@@ -192,5 +195,6 @@ adapter remains a minimal local integration, not production-ready.
 - The red-team fixtures are finite examples, not a penetration test, proof of complete
   prompt-injection prevention, or evidence of production security.
 
-Prompt 15 remains blocked on human acceptance of this contract, its false-negative
-tradeoff, and these residual risks.
+Prompt 20 exercises this contract and its fallback behavior without a live provider.
+Its false-negative tradeoff and the residual risks above still require human
+acceptance before the provider or deployment boundary expands.

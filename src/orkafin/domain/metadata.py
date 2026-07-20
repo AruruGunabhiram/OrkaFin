@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from typing import Annotated, ClassVar
 
 from pydantic import (
@@ -24,6 +23,7 @@ from orkafin.domain.base import (
     ModelDataPolicy,
     PersistencePolicy,
 )
+from orkafin.domain.privacy import contains_sensitive_text
 
 MetadataKey = Annotated[
     str,
@@ -56,7 +56,6 @@ _FORBIDDEN_KEY_PARTS = frozenset(
         "token",
     }
 )
-_EMAIL_PATTERN = re.compile(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b")
 
 
 class BoundedMetadata(RootModel[dict[MetadataKey, MetadataValue]]):
@@ -78,8 +77,8 @@ class BoundedMetadata(RootModel[dict[MetadataKey, MetadataValue]]):
                 raise ValueError(f"metadata key is not allowed: {key}")
             if isinstance(value, str) and len(value) > 256:
                 raise ValueError("metadata string values may contain at most 256 characters")
-            if isinstance(value, str) and _EMAIL_PATTERN.search(value):
-                raise ValueError("metadata values must not contain email addresses")
+            if isinstance(value, str) and contains_sensitive_text(value):
+                raise ValueError("metadata values must not contain sensitive text")
             if isinstance(value, float) and not math.isfinite(value):
                 raise ValueError("metadata numbers must be finite")
         serialized = json.dumps(self.root, separators=(",", ":"), sort_keys=True)

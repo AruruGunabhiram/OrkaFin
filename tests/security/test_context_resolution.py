@@ -96,9 +96,13 @@ def test_verified_limited_context_is_redacted_and_email_is_not_public(
             "claimed_role_ids": ["administrator"],
             "claimed_permissions": ["candidate.view"],
         },
+        {
+            "email": "forged.admin@example.invalid",
+            "available_actions": ["candidate.update_start_date"],
+        },
     ),
 )
-def test_client_supplied_role_and_permission_fields_are_validation_errors(
+def test_client_supplied_identity_permission_and_action_fields_are_validation_errors(
     tmp_path: Path, claims: dict[str, object]
 ) -> None:
     application, dependencies = build_context_application(tmp_path / "rejected-claims.db")

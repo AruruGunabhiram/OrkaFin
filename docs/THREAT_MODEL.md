@@ -1,6 +1,6 @@
 # Local V1 Threat Model
 
-**Status:** Updated for Prompt 19 single-action mock execution
+**Status:** Prompt 20 adversarial and regression controls exercised for Local V1
 **Method:** Asset and trust-boundary review with abuse cases and testable controls
 
 ## Scope and assets
@@ -204,17 +204,20 @@ adapter payloads.
 through source history or log aggregation.
 
 **Controls:** Server-only environment configuration; safe `.env.example` names;
-secret scanning in review/CI when tooling exists; central structured logging with
-allowlists/redaction; bounded safe exception envelopes; no raw body/prompt logging;
-synthetic fixtures; frontend bundle inspection.
+high-confidence current-tree scanning through `scripts/scan_secrets.py`; central
+structured logging with key- and content-based redaction; content minimization at
+provider, retained-message, feedback, event, and audit boundaries; bounded safe
+exception envelopes; no raw body/prompt logging; synthetic fixtures; frontend bundle
+inspection.
 
 **Verification:** Inject recognizable fake secret/note/token markers into all
 error paths, capture logs and responses, inspect generated static assets, and scan
 tracked files. Tests assert markers and tracebacks are absent.
 
-**Residual risk/change trigger:** Adding a real provider, remote log service, or
-client-side SDK requires data-flow and secret-management review plus rotation
-procedures.
+**Residual risk/change trigger:** Content patterns and the repository scanner are
+finite and do not replace entropy/history scanning or managed detection. Adding a
+real provider, remote log service, or client-side SDK requires data-flow and
+secret-management review plus rotation procedures.
 
 ### T-08 — Audit log exposure or tampering
 
@@ -309,10 +312,10 @@ control; any automated rollback requires a separately reviewed design.
 ## Cross-cutting verification schedule
 
 Threat cases become automated tests in the prompt that introduces the relevant
-interface. Prompt 20 must run the complete adversarial suite regardless of whether
-the optional action is implemented. A manual review must compare API schemas,
-database migrations, logs, fixture markers, CORS settings, and widget bundles with
-this register.
+interface. Prompt 20 traceability and the complete release gate are recorded in
+[`TEST_STRATEGY.md`](TEST_STRATEGY.md). A manual review must still compare API
+schemas, database migrations, logs, fixture markers, CORS settings, and widget
+bundles with this register.
 
 ## Change triggers and process
 
@@ -323,7 +326,6 @@ in `docs/DECISIONS.md` and create/supersede an ADR when the architecture boundar
 changes. A passing local suite is not sufficient evidence for a production threat
 model.
 
-Before Prompt 15, the human reviewer must decide whether to accept the remaining
-semantic-grounding, catalog-poisoning, history-classification, external-provider,
-and red-team-coverage risks documented above. Until that review is recorded, the
-assistant endpoint checkpoint is not passed.
+Prompt 20 does not close the semantic-grounding, catalog-poisoning,
+history-classification, external-provider, authentication, or finite-red-team risks
+documented above. They require human acceptance before any boundary expansion.

@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, ClassVar
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from orkafin.domain.base import (
     DataClassification,
@@ -22,6 +22,7 @@ from orkafin.domain.base import (
 )
 from orkafin.domain.context import WorkspaceRef
 from orkafin.domain.identifiers import RequestId, SafeReference
+from orkafin.domain.privacy import redact_sensitive_text
 
 FeedbackComment = Annotated[
     str,
@@ -115,6 +116,12 @@ class RecommendationFeedback(DomainModel):
     comment: FeedbackComment | None = None
     submitted_at: UtcDatetime
     request_id: RequestId
+
+    @field_validator("comment")
+    @classmethod
+    def minimize_sensitive_comment(cls, value: str | None) -> str | None:
+        """Exclude recognizable credentials and email from retained free-form feedback."""
+        return redact_sensitive_text(value) if value is not None else None
 
 
 class RecommendationPreference(StrEnum):

@@ -69,7 +69,7 @@ def _build(
     return application, dependencies, adapter, state
 
 
-def _prepare(application: FastAPI) -> dict[str, Any]:
+def _propose(application: FastAPI) -> dict[str, Any]:
     proposal_response = asyncio.run(
         _post(
             application,
@@ -83,7 +83,11 @@ def _prepare(application: FastAPI) -> dict[str, Any]:
         )
     )
     assert proposal_response.status_code == 201
-    proposal = proposal_response.json()
+    return proposal_response.json()
+
+
+def _prepare(application: FastAPI) -> dict[str, Any]:
+    proposal = _propose(application)
     confirmation_response = asyncio.run(
         _post(
             application,
@@ -142,6 +146,27 @@ def _action_audits(dependencies: ApplicationDependencies) -> tuple[object, ...]:
             for row in OrkaFinRepository(session).list_audit_records()
             if row.event_type.startswith("action_")
         )
+
+
+def test_execution_before_explicit_confirmation_is_rejected_without_adapter_dispatch(
+    tmp_path: Path,
+) -> None:
+    application, dependencies, _, state = _build(tmp_path)
+    proposal = _propose(application)
+
+    response = _execute(application, proposal)
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "action_state_conflict"
+    assert "No changes were made" in response.json()["message"]
+    with dependencies.database.session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(ActionExecutionModel)) == 0
+    assert state.snapshot().candidate_start_dates == {}
+    assert state.snapshot().executions == {}
+    events = [row.event_type for row in _action_audits(dependencies)]
+    assert events.count("action_execution_attempted") == 1
+    assert "action_tampering_rejected" in events
+    assert "action_adapter_requested" not in events
 
 
 def test_success_requires_receipt_mutates_only_mock_state_and_writes_complete_audit(

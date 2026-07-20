@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from orkafin.core.request_id import get_request_id
+from orkafin.domain.privacy import redact_sensitive_text
 
 REDACTED_VALUE = "[REDACTED]"
 SENSITIVE_KEY_PARTS = frozenset(
@@ -43,9 +44,11 @@ def redact_value(value: object) -> object:
         }
     if isinstance(value, (list, tuple, set, frozenset)):
         return [redact_value(item) for item in value]
-    if value is None or isinstance(value, (bool, int, float, str)):
+    if isinstance(value, str):
+        return redact_sensitive_text(value)
+    if value is None or isinstance(value, (bool, int, float)):
         return value
-    return str(value)
+    return redact_sensitive_text(str(value))
 
 
 class RedactingFilter(logging.Filter):
@@ -60,6 +63,13 @@ class RedactingFilter(logging.Filter):
         if isinstance(record.msg, Mapping):
             record.msg = json.dumps(redact_value(record.msg), sort_keys=True)
             record.args = ()
+        elif isinstance(record.msg, str):
+            try:
+                rendered_message = record.getMessage()
+            except Exception:  # A malformed log call must not expose arbitrary argument values.
+                rendered_message = "invalid_log_message"
+            record.msg = redact_sensitive_text(rendered_message)
+            record.args = ()
         if not getattr(record, "request_id", None):
             record.request_id = get_request_id()
         return True
@@ -73,7 +83,7 @@ class JsonFormatter(logging.Formatter):
             "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": redact_sensitive_text(record.getMessage()),
         }
         request_id = getattr(record, "request_id", None) or get_request_id()
         if request_id is not None:

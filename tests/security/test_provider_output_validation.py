@@ -332,3 +332,32 @@ def test_repeated_unsafe_output_has_deterministic_safe_fallback() -> None:
 
     assert first == second
     assert fixture["invented_feature_id"] not in first.model_dump_json()
+
+
+def test_sensitive_question_and_provider_output_are_minimized_or_rejected() -> None:
+    email = "provider.marker" + "@" + "example.invalid"
+    token = "sk-" + "P" * 24
+    request = _generation_request(no_sources=True).model_copy(
+        update={"user_question": f"Explain this page for {email}; api_key={token}"}
+    )
+    provider_request = ResponseGenerationService.build_provider_request(request)
+    serialized_request = provider_request.model_dump_json()
+    unsafe = ProviderDraft(
+        kind=DraftKind.UNAVAILABLE_INFORMATION,
+        text=f"No source is available. Contact {email} with token={token}.",
+        template_id="external_sensitive_output",
+    )
+
+    assert email not in serialized_request
+    assert token not in serialized_request
+    assert "[REDACTED]" in provider_request.user_question
+    with pytest.raises(ProviderDraftRejected, match="sensitive text"):
+        ProviderOutputValidator().validate(unsafe, provider_request)
+
+    response = ResponseGenerationService(
+        provider=_DraftProvider(unsafe), clock=lambda: NOW
+    ).generate(request)
+    serialized_response = response.model_dump_json()
+    assert response.content.kind == "unavailable_information"
+    assert email not in serialized_response
+    assert token not in serialized_response

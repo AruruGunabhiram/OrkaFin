@@ -13,6 +13,7 @@ from orkafin.domain.base import (
     ModelDataPolicy,
     PersistencePolicy,
 )
+from orkafin.domain.privacy import redact_sensitive_text
 from orkafin.providers.contracts import (
     PROVIDER_HISTORY_MAX_MESSAGE_CHARACTERS,
     PROVIDER_HISTORY_MAX_MESSAGES,
@@ -75,7 +76,9 @@ class BoundedConversationHistoryPolicy:
                 continue
             if remaining <= 0 or len(selected) >= self.max_messages:
                 break
-            content = entry.content[: min(self.max_message_characters, remaining)].strip()
+            content = redact_sensitive_text(entry.content)[
+                : min(self.max_message_characters, remaining)
+            ].strip()
             if not content:
                 continue
             selected.append(SafeHistoryMessage(role=role, content=content))

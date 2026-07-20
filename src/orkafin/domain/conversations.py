@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, ClassVar
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from orkafin.domain.base import (
     DataClassification,
@@ -21,6 +21,7 @@ from orkafin.domain.base import (
 )
 from orkafin.domain.context import WorkspaceRef
 from orkafin.domain.identifiers import RequestId
+from orkafin.domain.privacy import redact_sensitive_text
 
 MessageText = Annotated[
     str,
@@ -96,3 +97,9 @@ class Message(DomainModel):
     source_ids: tuple[Identifier, ...] = Field(default=(), max_length=20)
     request_id: RequestId
     created_at: UtcDatetime
+
+    @field_validator("content")
+    @classmethod
+    def minimize_sensitive_content(cls, value: str) -> str:
+        """Keep user-visible history useful without retaining recognizable secrets or email."""
+        return redact_sensitive_text(value)
