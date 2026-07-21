@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import io
 import json
 import logging
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
+import httpx
 import pytest
 from pydantic import ValidationError
 
@@ -31,13 +34,18 @@ from orkafin.adapters.orka_ats import (
     AppsScriptSuccessEnvelope,
     HttpTransportResponse,
     HttpTransportTimeoutError,
+    HttpxAsyncHttpTransport,
+    canonical_payload_json,
+    create_signed_envelope,
 )
+from orkafin.core.config import Settings
 from orkafin.domain.context import AppMetadata, AppStatus
 from orkafin.domain.identifiers import RequestId
 
 NOW = datetime(2026, 7, 13, 20, 0, tzinfo=UTC)
 REQUEST_ID = RequestId(root="00000000-0000-4000-8000-000000000110")
-ENDPOINT = "https://example.invalid/orka-ats-adapter"
+ENDPOINT = "https://script.google.com/macros/s/test-deployment/exec"
+SHARED_SECRET = "ab" * 32
 
 
 class RecordingTransport:
@@ -113,7 +121,12 @@ def success_transport_response(
 def enabled_adapter(transport: RecordingTransport) -> AppsScriptOrkaATSAdapter:
     return AppsScriptOrkaATSAdapter(
         transport=transport,
-        config=AppsScriptAdapterConfig(enabled=True, endpoint_url=ENDPOINT),
+        config=AppsScriptAdapterConfig(
+            enabled=True,
+            endpoint_url=ENDPOINT,
+            key_id="orkaats-dev-1",
+            shared_secret=SHARED_SECRET,
+        ),
     )
 
 
@@ -137,7 +150,31 @@ def test_success_parsing_serializes_typed_envelope_and_propagates_request_id() -
     assert headers["X-OrkaFin-Request-ID"] == REQUEST_ID.root
     body = call["body"]
     assert isinstance(body, bytes)
-    envelope = AppsScriptRequestEnvelope.model_validate_json(body)
+    signed_envelope = json.loads(body)
+    assert set(signed_envelope) == {
+        "version",
+        "keyId",
+        "nonce",
+        "timestamp",
+        "payload",
+        "signature",
+    }
+    assert signed_envelope["version"] == 1
+    assert signed_envelope["keyId"] == "orkaats-dev-1"
+    signing_input = ":".join(
+        (
+            str(signed_envelope["version"]),
+            signed_envelope["keyId"],
+            signed_envelope["nonce"],
+            str(signed_envelope["timestamp"]),
+            canonical_payload_json(signed_envelope["payload"]),
+        )
+    )
+    assert (
+        signed_envelope["signature"]
+        == hmac.new(SHARED_SECRET.encode(), signing_input.encode(), hashlib.sha256).hexdigest()
+    )
+    envelope = AppsScriptRequestEnvelope.model_validate_json(json.dumps(signed_envelope["payload"]))
     assert envelope.operation is AdapterCapability.GET_APP_METADATA
     assert envelope.request_id == REQUEST_ID
     assert envelope.payload == request().model_dump(mode="json")
@@ -267,7 +304,9 @@ def test_adapter_logs_exclude_endpoint_and_response_secrets() -> None:
         transport=transport,
         config=AppsScriptAdapterConfig(
             enabled=True,
-            endpoint_url=f"https://example.invalid/{endpoint_secret}",
+            endpoint_url=f"https://example.invalid/{endpoint_secret}/exec",
+            key_id="orkaats-dev-1",
+            shared_secret=SHARED_SECRET,
         ),
     )
     logger = logging.getLogger("orkafin.adapters.orka_ats.apps_script")
@@ -290,6 +329,7 @@ def test_adapter_logs_exclude_endpoint_and_response_secrets() -> None:
     assert "apps_script_adapter_response" in output
     assert secret not in output
     assert endpoint_secret not in output
+    assert SHARED_SECRET not in output
 
 
 def test_disabled_by_default_and_incomplete_enabled_config_refuse_startup() -> None:
@@ -300,4 +340,81 @@ def test_disabled_by_default_and_incomplete_enabled_config_refuse_startup() -> N
     with pytest.raises(ValidationError, match="requires endpoint_url"):
         AppsScriptAdapterConfig(enabled=True)
     with pytest.raises(ValidationError, match="absolute HTTPS URL"):
-        AppsScriptAdapterConfig(enabled=True, endpoint_url="http://localhost:8000")
+        AppsScriptAdapterConfig(
+            enabled=True,
+            endpoint_url="http://localhost:8000/exec",
+            key_id="orkaats-dev-1",
+            shared_secret=SHARED_SECRET,
+        )
+
+
+def test_adapter_config_builds_from_application_settings_and_masks_secret() -> None:
+    settings = Settings(
+        adapter_mode="apps_script",
+        orka_ats_adapter_url=ENDPOINT,
+        orka_ats_adapter_version=1,
+        orka_ats_adapter_key_id="orkaats-dev-1",
+        orka_ats_adapter_shared_secret=SHARED_SECRET,
+    )
+
+    config = AppsScriptAdapterConfig.from_settings(settings)
+
+    assert config.enabled is True
+    assert config.endpoint_url == ENDPOINT
+    assert config.shared_secret is not None
+    assert config.shared_secret.get_secret_value() == SHARED_SECRET
+    assert SHARED_SECRET not in repr(config)
+
+
+def test_signed_envelope_uses_fresh_uuid_epoch_and_canonical_hmac(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    nonce = "00000000-0000-4000-8000-000000000999"
+    monkeypatch.setattr("orkafin.adapters.orka_ats.crypto.uuid4", lambda: nonce)
+    monkeypatch.setattr("orkafin.adapters.orka_ats.crypto.time.time", lambda: 1_721_000_000.9)
+    payload = {"z": "last", "a": {"allowed": True}}
+
+    envelope = create_signed_envelope(
+        payload,
+        version=1,
+        key_id="orkaats-dev-1",
+        shared_secret=SHARED_SECRET,
+    )
+
+    canonical_payload = canonical_payload_json(payload)
+    signing_input = f"1:orkaats-dev-1:{nonce}:1721000000:{canonical_payload}"
+    expected_signature = hmac.new(
+        SHARED_SECRET.encode(), signing_input.encode(), hashlib.sha256
+    ).hexdigest()
+    assert envelope == {
+        "version": 1,
+        "keyId": "orkaats-dev-1",
+        "nonce": nonce,
+        "timestamp": 1_721_000_000,
+        "payload": payload,
+        "signature": expected_signature,
+    }
+
+
+def test_httpx_transport_posts_json_bytes_and_returns_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url == ENDPOINT
+        assert request.headers["content-type"] == "application/json"
+        assert request.content == b'{"request":"payload"}'
+        return httpx.Response(200, json={"outcome": "success"})
+
+    async def exercise() -> HttpTransportResponse:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            transport = HttpxAsyncHttpTransport(client)
+            return await transport.post(
+                url=ENDPOINT,
+                body=b'{"request":"payload"}',
+                headers={"Content-Type": "application/json"},
+                timeout_seconds=5.0,
+            )
+
+    response = asyncio.run(exercise())
+
+    assert response.status_code == 200
+    assert json.loads(response.body) == {"outcome": "success"}

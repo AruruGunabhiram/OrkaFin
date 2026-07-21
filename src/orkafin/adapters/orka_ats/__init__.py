@@ -4,6 +4,7 @@ from orkafin.adapters.orka_ats.apps_script import (
     APPS_SCRIPT_ORKA_ATS_ADAPTER_ID,
     APPS_SCRIPT_ORKA_ATS_APP_ID,
     APPS_SCRIPT_WIRE_SCHEMA_VERSION,
+    AppsScriptAdapter,
     AppsScriptAdapterConfig,
     AppsScriptFailureEnvelope,
     AppsScriptOrkaATSAdapter,
@@ -13,6 +14,12 @@ from orkafin.adapters.orka_ats.apps_script import (
     HttpTransportError,
     HttpTransportResponse,
     HttpTransportTimeoutError,
+    HttpxAsyncHttpTransport,
+)
+from orkafin.adapters.orka_ats.crypto import (
+    SignedPayloadEnvelope,
+    canonical_payload_json,
+    create_signed_envelope,
 )
 from orkafin.adapters.orka_ats.mock import (
     MOCK_ORKA_ATS_ADAPTER_ID,
@@ -36,6 +43,7 @@ __all__ = [
     "APPS_SCRIPT_WIRE_SCHEMA_VERSION",
     "MOCK_ORKA_ATS_ADAPTER_ID",
     "MOCK_ORKA_ATS_APP_ID",
+    "AppsScriptAdapter",
     "AppsScriptAdapterConfig",
     "AppsScriptFailureEnvelope",
     "AppsScriptOrkaATSAdapter",
@@ -45,6 +53,7 @@ __all__ = [
     "HttpTransportError",
     "HttpTransportResponse",
     "HttpTransportTimeoutError",
+    "HttpxAsyncHttpTransport",
     "MockFailureSimulation",
     "MockCandidateStateConflictError",
     "MockIdempotencyConflictError",
@@ -53,5 +62,8 @@ __all__ = [
     "MockOrkaATSStateStore",
     "MockStateError",
     "MockStoredExecution",
+    "SignedPayloadEnvelope",
+    "canonical_payload_json",
+    "create_signed_envelope",
     "default_mock_state_path",
 ]

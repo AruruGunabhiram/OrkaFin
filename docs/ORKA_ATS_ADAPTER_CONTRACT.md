@@ -1,6 +1,6 @@
 # OrkaATS Apps Script Adapter Contract
 
-**Status:** Prompt 19 mock execution implemented; live transport remains unproven
+**Status:** Signed read-only HTTP transport implemented; live connectivity remains unproven
 
 **Wire schema:** `v1`
 
@@ -21,15 +21,43 @@ names, cell coordinates, query handles, or direct storage operations. Any mappin
 from OrkaATS application semantics to its operational store remains private to
 OrkaATS.
 
-`AppsScriptOrkaATSAdapter` is only a disabled-by-default HTTP client shell with an
-injected transport. It has no production authentication implementation, no default
-URL, no embedded secret, and no network client registration in the application
-composition root. Its tests prove serialization and safe failure behavior against
-mocked HTTP responses only.
+`AppsScriptOrkaATSAdapter` is a disabled-by-default HTTP client with an injectable
+transport and a concrete `httpx` transport. It signs each outbound request with a
+server-side shared secret, has no default URL or embedded secret, and is not
+registered in the application composition root. Its tests prove signing,
+serialization, HTTP behavior, and safe failure behavior against mocked responses
+only; they do not prove a deployed Apps Script receiver or live candidate access.
 
 ## HTTP envelopes
 
-Every request is one JSON object:
+Every request is a signed outer JSON object:
+
+```json
+{
+  "version": 1,
+  "keyId": "orkaats-dev-1",
+  "nonce": "00000000-0000-4000-8000-000000000999",
+  "timestamp": 1721000000,
+  "payload": { "...": "typed operation envelope below" },
+  "signature": "lowercase-hmac-sha256-hex"
+}
+```
+
+`nonce` is a fresh UUID4 and `timestamp` is the current integer Unix epoch. The
+signature input is the UTF-8 encoding of:
+
+```text
+version:keyId:nonce:timestamp:JSON(payload)
+```
+
+`JSON(payload)` is UTF-8 JSON with recursively sorted object keys, no insignificant
+whitespace, and non-ASCII characters left unescaped. The 64-character hexadecimal
+shared-secret value is used as the UTF-8 HMAC key (it is not hex-decoded). The
+receiver must reproduce this canonicalization exactly, compare signatures in
+constant time, enforce an approved clock-skew window, and atomically reject reused
+nonces. `keyId` selects a secret; it is not itself a secret.
+
+The signed `payload` is the existing typed operation envelope:
 
 ```json
 {
@@ -47,8 +75,9 @@ Every request is one JSON object:
 }
 ```
 
-The payload is the exact typed general-contract request for `operation`. The outer
-and inner versions, request ID, and app ID must agree. The HTTP client also sends
+Its nested `payload` is the exact typed general-contract request for `operation`.
+The operation envelope and typed request versions, request ID, and app ID must
+agree. The HTTP client also sends
 the request ID, wire version, and adapter contract version in headers for
 correlation and early routing; headers do not replace envelope validation.
 
@@ -248,8 +277,15 @@ storage access, authentication implementation, and application business logic.
 
 ```javascript
 function doPost(event) {
-  const authenticatedCaller = authenticateAndVerifyReplay(event); // REQUIRED, TBD
-  const envelope = parseBoundedJson(event.postData.contents);
+  const signed = parseBoundedJson(event.postData.contents);
+  requireSupportedSigningVersion(signed.version);
+  const secret = resolveActiveSecret(signed.keyId);
+  requireFreshTimestamp(signed.timestamp);
+  requireUnusedNonceAtomically(signed.keyId, signed.nonce, signed.timestamp);
+  requireConstantTimeValidHmac(signed, secret);
+
+  const authenticatedCaller = callerBoundToKey(signed.keyId);
+  const envelope = signed.payload;
   requireSupportedVersions(envelope.schema_version,
                            envelope.adapter_contract_version);
   requireRequestBindings(envelope, authenticatedCaller);
@@ -324,8 +360,9 @@ All of these are mandatory before replacing synthetic data:
 
 1. Security and platform approval of the exact topology and Apps Script deployment
    identity behavior.
-2. Mutual service authentication or equivalent approved request signing/token
-   exchange, with issuer/audience/expiry verification and key rotation.
+2. Security approval of the implemented request-HMAC key scope plus secret storage,
+   rotation, revocation, response authenticity, and any required mutual service or
+   end-user authentication.
 3. Replay protection bound to request ID, nonce, deployment, operation, and expiry;
    durable idempotency/reconciliation for writes.
 4. TLS-only endpoints, secret management, endpoint allowlisting, bounded request

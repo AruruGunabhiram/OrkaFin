@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Annotated, Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -17,6 +18,13 @@ class AppEnvironment(StrEnum):
     DEVELOPMENT = "development"
     TEST = "test"
     PRODUCTION = "production"
+
+
+class AdapterMode(StrEnum):
+    """OrkaATS adapter implementations available to this service."""
+
+    MOCK = "mock"
+    APPS_SCRIPT = "apps_script"
 
 
 LoopbackOrigins = Annotated[tuple[str, ...], NoDecode]
@@ -30,6 +38,7 @@ class Settings(BaseSettings):
         env_prefix="ORKAFIN_",
         extra="ignore",
         frozen=True,
+        populate_by_name=True,
     )
 
     application_name: str = "OrkaFin Local V1"
@@ -52,6 +61,34 @@ class Settings(BaseSettings):
         default=2_592_000, ge=60, le=31_536_000
     )
     recommendation_reduced_window_multiplier: int = Field(default=7, ge=2, le=30)
+    adapter_mode: AdapterMode = Field(
+        default=AdapterMode.MOCK,
+        validation_alias=AliasChoices("ADAPTER_MODE", "ORKAFIN_ADAPTER_MODE"),
+    )
+    orka_ats_adapter_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ORKA_ATS_ADAPTER_URL", "ORKAFIN_ORKA_ATS_ADAPTER_URL"),
+    )
+    orka_ats_adapter_version: int = Field(
+        default=1,
+        ge=1,
+        validation_alias=AliasChoices(
+            "ORKA_ATS_ADAPTER_VERSION", "ORKAFIN_ORKA_ATS_ADAPTER_VERSION"
+        ),
+    )
+    orka_ats_adapter_key_id: str = Field(
+        default="orkaats-dev-1",
+        min_length=1,
+        max_length=128,
+        validation_alias=AliasChoices("ORKA_ATS_ADAPTER_KEY_ID", "ORKAFIN_ORKA_ATS_ADAPTER_KEY_ID"),
+    )
+    orka_ats_adapter_shared_secret: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "ORKA_ATS_ADAPTER_SHARED_SECRET",
+            "ORKAFIN_ORKA_ATS_ADAPTER_SHARED_SECRET",
+        ),
+    )
     fixture_mode: bool = True
     local_fixture_subject: str | None = None
     debug: bool = False
@@ -124,12 +161,35 @@ class Settings(BaseSettings):
             raise ValueError("debug mode is limited to local development environments")
         if self.local_fixture_subject is not None and not self.fixture_mode:
             raise ValueError("a local fixture subject requires fixture_mode=true")
+        if self.adapter_mode is AdapterMode.APPS_SCRIPT:
+            self._validate_apps_script_settings()
         return self
 
     def _has_provider_key(self) -> bool:
         return bool(
             self.ai_provider_api_key and self.ai_provider_api_key.get_secret_value().strip()
         )
+
+    def _validate_apps_script_settings(self) -> None:
+        if self.orka_ats_adapter_url is None:
+            raise ValueError("apps_script adapter mode requires ORKA_ATS_ADAPTER_URL")
+        endpoint = self.orka_ats_adapter_url
+        parsed = urlparse(endpoint)
+        if endpoint != endpoint.strip() or parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("ORKA_ATS_ADAPTER_URL must be an absolute HTTPS URL")
+        if parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError(
+                "ORKA_ATS_ADAPTER_URL must not contain credentials, query, or fragment"
+            )
+        if not parsed.path.endswith("/exec"):
+            raise ValueError("ORKA_ATS_ADAPTER_URL must end in /exec")
+        if not self.orka_ats_adapter_key_id.strip():
+            raise ValueError("ORKA_ATS_ADAPTER_KEY_ID must not be blank")
+        if self.orka_ats_adapter_shared_secret is None:
+            raise ValueError("apps_script adapter mode requires ORKA_ATS_ADAPTER_SHARED_SECRET")
+        secret = self.orka_ats_adapter_shared_secret.get_secret_value()
+        if re.fullmatch(r"[0-9a-fA-F]{64}", secret) is None:
+            raise ValueError("ORKA_ATS_ADAPTER_SHARED_SECRET must be 64 hexadecimal characters")
 
 
 def default_settings() -> Settings:

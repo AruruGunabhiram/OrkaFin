@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from orkafin.core.config import AppEnvironment, Settings
+from orkafin.core.config import AdapterMode, AppEnvironment, Settings
 from orkafin.providers.deterministic import DeterministicResponseProvider
 from orkafin.providers.factory import build_response_provider
 
@@ -14,6 +14,44 @@ def test_settings_read_prefixed_environment_values(monkeypatch: pytest.MonkeyPat
 
     assert settings.log_level == "DEBUG"
     assert settings.allowed_origins == ("http://localhost:3000", "http://127.0.0.1:8000")
+
+
+def test_settings_read_exact_apps_script_environment_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ADAPTER_MODE", "apps_script")
+    monkeypatch.setenv(
+        "ORKA_ATS_ADAPTER_URL",
+        "https://script.google.com/macros/s/test-deployment/exec",
+    )
+    monkeypatch.setenv("ORKA_ATS_ADAPTER_VERSION", "1")
+    monkeypatch.setenv("ORKA_ATS_ADAPTER_KEY_ID", "orkaats-dev-1")
+    monkeypatch.setenv("ORKA_ATS_ADAPTER_SHARED_SECRET", "ab" * 32)
+
+    settings = Settings()
+
+    assert settings.adapter_mode is AdapterMode.APPS_SCRIPT
+    assert settings.orka_ats_adapter_version == 1
+    assert settings.orka_ats_adapter_key_id == "orkaats-dev-1"
+    assert settings.orka_ats_adapter_shared_secret is not None
+    assert settings.orka_ats_adapter_shared_secret.get_secret_value() == "ab" * 32
+
+
+def test_apps_script_mode_requires_complete_valid_transport_configuration() -> None:
+    with pytest.raises(ValidationError, match="requires ORKA_ATS_ADAPTER_URL"):
+        Settings(adapter_mode="apps_script")
+    with pytest.raises(ValidationError, match="must end in /exec"):
+        Settings(
+            adapter_mode="apps_script",
+            orka_ats_adapter_url="https://script.google.com/macros/s/test-deployment",
+            orka_ats_adapter_shared_secret="ab" * 32,
+        )
+    with pytest.raises(ValidationError, match="64 hexadecimal characters"):
+        Settings(
+            adapter_mode="apps_script",
+            orka_ats_adapter_url="https://script.google.com/macros/s/test-deployment/exec",
+            orka_ats_adapter_shared_secret="not-a-valid-secret",
+        )
 
 
 def test_deterministic_mode_does_not_require_an_api_key() -> None:

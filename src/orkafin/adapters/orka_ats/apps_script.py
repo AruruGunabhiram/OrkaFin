@@ -1,18 +1,24 @@
-"""Disabled-by-default HTTP shell for the future OrkaATS Apps Script adapter.
-
-This module implements transport and wire validation only.  It does not provide
-production authentication and must not be used with live candidate data.
-"""
+"""Authenticated HTTP transport for the OrkaATS Apps Script adapter boundary."""
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Literal, Protocol, TypeVar
+from typing import TYPE_CHECKING, Literal, Protocol, TypeVar
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
+import httpx
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    SecretStr,
+    ValidationError,
+    model_validator,
+)
 
 from orkafin.adapters.base import (
     ADAPTER_CONTRACT_VERSION,
@@ -60,6 +66,7 @@ from orkafin.adapters.errors import (
     AdapterValidationFailedError,
     adapter_error_from_failure,
 )
+from orkafin.adapters.orka_ats.crypto import create_signed_envelope
 from orkafin.core.logging import get_logger
 from orkafin.domain.base import (
     DataClassification,
@@ -73,6 +80,9 @@ from orkafin.domain.base import (
 )
 from orkafin.domain.identifiers import RequestId
 
+if TYPE_CHECKING:
+    from orkafin.core.config import Settings
+
 APPS_SCRIPT_ORKA_ATS_ADAPTER_ID = "apps_script_orka_ats"
 APPS_SCRIPT_ORKA_ATS_APP_ID = "orka_ats"
 APPS_SCRIPT_WIRE_SCHEMA_VERSION = "v1"
@@ -82,12 +92,15 @@ _ResponseT = TypeVar("_ResponseT", bound=AdapterResponse)
 
 
 class AppsScriptAdapterConfig(BaseModel):
-    """Operational settings for the unauthenticated controlled-test shell."""
+    """Validated operational and signing settings for the HTTP adapter."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     enabled: bool = False
     endpoint_url: str | None = None
+    version: int = Field(default=1, ge=1)
+    key_id: str | None = Field(default=None, min_length=1, max_length=128)
+    shared_secret: SecretStr | None = None
     timeout_seconds: float = Field(default=5.0, gt=0.0, le=10.0)
     max_response_bytes: int = Field(default=1_000_000, ge=1_024, le=2_000_000)
 
@@ -106,7 +119,31 @@ class AppsScriptAdapterConfig(BaseModel):
             raise ValueError(
                 "Apps Script endpoint_url must not contain credentials, query, or fragment"
             )
+        if not parsed.path.endswith("/exec"):
+            raise ValueError("Apps Script endpoint_url must end in /exec")
+        if self.key_id is None:
+            raise ValueError("enabled Apps Script adapter requires key_id")
+        if self.shared_secret is None:
+            raise ValueError("enabled Apps Script adapter requires shared_secret")
+        if not self.key_id.strip():
+            raise ValueError("Apps Script key_id must not be blank")
+        secret = self.shared_secret.get_secret_value()
+        if re.fullmatch(r"[0-9a-fA-F]{64}", secret) is None:
+            raise ValueError("Apps Script shared_secret must be 64 hexadecimal characters")
         return self
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> AppsScriptAdapterConfig:
+        """Create adapter-local configuration from validated application settings."""
+
+        secret = settings.orka_ats_adapter_shared_secret
+        return cls(
+            enabled=settings.adapter_mode.value == "apps_script",
+            endpoint_url=settings.orka_ats_adapter_url,
+            version=settings.orka_ats_adapter_version,
+            key_id=settings.orka_ats_adapter_key_id,
+            shared_secret=secret,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +176,53 @@ class AsyncHttpTransport(Protocol):
     ) -> HttpTransportResponse:
         """POST one JSON body without interpreting adapter semantics."""
         ...
+
+
+class HttpxAsyncHttpTransport:
+    """Production HTTP transport implemented with ``httpx``.
+
+    A client may be injected for connection pooling or mocked transport tests. When
+    absent, the transport owns a short-lived client for the request.
+    """
+
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+        self._client = client
+
+    async def post(
+        self,
+        *,
+        url: str,
+        body: bytes,
+        headers: Mapping[str, str],
+        timeout_seconds: float,
+    ) -> HttpTransportResponse:
+        try:
+            if self._client is not None:
+                response = await self._client.post(
+                    url,
+                    content=body,
+                    headers=headers,
+                    timeout=timeout_seconds,
+                    follow_redirects=True,
+                )
+            else:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        url,
+                        content=body,
+                        headers=headers,
+                        timeout=timeout_seconds,
+                        follow_redirects=True,
+                    )
+        except httpx.TimeoutException as error:
+            raise HttpTransportTimeoutError from error
+        except httpx.RequestError as error:
+            raise HttpTransportError from error
+        return HttpTransportResponse(
+            status_code=response.status_code,
+            body=response.content,
+            headers=dict(response.headers),
+        )
 
 
 _WIRE_POLICY = ModelDataPolicy(
@@ -216,12 +300,12 @@ class AppsScriptFailureEnvelope(DomainModel):
 
 
 class AppsScriptOrkaATSAdapter:
-    """HTTP client shell preserving the general application adapter protocol."""
+    """Signed HTTP client preserving the general application adapter protocol."""
 
     def __init__(
         self,
         *,
-        transport: AsyncHttpTransport,
+        transport: AsyncHttpTransport | None = None,
         config: AppsScriptAdapterConfig | None = None,
     ) -> None:
         self._config = config or AppsScriptAdapterConfig()
@@ -231,7 +315,7 @@ class AppsScriptOrkaATSAdapter:
                 safe_message="The Apps Script OrkaATS adapter is disabled.",
             )
         assert self._config.endpoint_url is not None
-        self._transport = transport
+        self._transport = transport or HttpxAsyncHttpTransport()
         self._metadata = AdapterMetadata(
             adapter_id=APPS_SCRIPT_ORKA_ATS_ADAPTER_ID,
             owning_app_id=APPS_SCRIPT_ORKA_ATS_APP_ID,
@@ -343,6 +427,16 @@ class AppsScriptOrkaATSAdapter:
             app_id=request.app_id,
             payload=request_payload,
         )
+        key_id = self._config.key_id
+        shared_secret = self._config.shared_secret
+        assert key_id is not None
+        assert shared_secret is not None
+        signed_envelope = create_signed_envelope(
+            envelope.model_dump(mode="json"),
+            version=self._config.version,
+            key_id=key_id,
+            shared_secret=shared_secret,
+        )
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -361,7 +455,11 @@ class AppsScriptOrkaATSAdapter:
         try:
             transport_response = await self._transport.post(
                 url=endpoint_url,
-                body=envelope.model_dump_json().encode("utf-8"),
+                body=json.dumps(
+                    signed_envelope,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8"),
                 headers=headers,
                 timeout_seconds=self._config.timeout_seconds,
             )
@@ -538,3 +636,7 @@ class AppsScriptOrkaATSAdapter:
         else:
             error_type = AdapterInternalFailureError
         return error_type(request_id=request.request_id, app_id=request.app_id)
+
+
+# Prompt 8 terminology; preserve the established repository class name as well.
+AppsScriptAdapter = AppsScriptOrkaATSAdapter

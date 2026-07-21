@@ -203,10 +203,11 @@ persists an execution reservation before dispatch, and transitions the proposal 
 `rejected` detail. Duplicate requests return the stored result and do not dispatch.
 The mock's mutable JSON state is adapter-owned and separate from OrkaFin SQLite.
 
-The live Apps Script client shell is not selected by this execution service.
-Nothing in this flow proves real authentication, remote reachability, OrkaATS
-business rules, Google Sheet mutation, or production receipt authority. Full
-bindings and reconciliation behavior are in
+The signed Apps Script HTTP client is not selected by this execution service. It
+can POST an HMAC-authenticated envelope through `httpx`, but nothing in this flow
+proves remote reachability, end-user authentication, receiver-side replay defense,
+OrkaATS business rules, Google Sheet mutation, or production receipt authority.
+Full bindings and reconciliation behavior are in
 [`ACTION_AND_CONFIRMATION_FLOW.md`](ACTION_AND_CONFIRMATION_FLOW.md).
 
 ## Apps Script and localhost
@@ -219,10 +220,11 @@ that machine may reach localhost, but that is a different path, remains subject 
 CORS and origin rules, and cannot make browser identity claims trustworthy.
 
 Local V1 uses direct local browser-to-service calls and mock trusted boundaries.
-Live Apps Script testing requires a deliberately exposed controlled HTTPS endpoint,
-server-to-server authentication, request integrity/replay controls, an exact CORS
-policy for any browser path, and deployment-mode identity testing. Those are not
-silently approximated in V1.
+The outbound bridge requires an explicit Apps Script `/exec` HTTPS URL, signing
+version, key ID, and 64-hex shared secret. Live testing additionally requires
+receiver-side signature verification, replay storage and clock-skew enforcement,
+an exact CORS policy for any browser path, and deployment-mode identity testing.
+Those controls are not inferred from a successful HTTP response.
 
 ## Failure and consistency rules
 
